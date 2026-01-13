@@ -129,9 +129,11 @@ from shared_services.constants import *
 
 from shared_services.db_service import (
     is_user_in_db, 
+    is_privacy_policy_confirmed_in_db,
     create_record_for_new_user_in_db,
     update_user_record_id_db,
 )
+
 from database import (
     Manager,
     Resume,
@@ -248,7 +250,6 @@ async def setup_new_user_command(update: Update, context: ContextTypes.DEFAULT_T
             # If cannot update user records, ValueError is raised from method: update_user_records_with_top_level_key()
         logger.debug(f"setup_new_user_command: {bot_user_id} in user records is updated with telegram user attributes.")
         
-        """
         # ----- SEND NEW USER SETUP NOTIFICATION to admin  -----
 
         # Send notification to admin about the error
@@ -257,7 +258,6 @@ async def setup_new_user_command(update: Update, context: ContextTypes.DEFAULT_T
                 application=context.application,
                 text=f"✅ New user {bot_user_id} has been successfully setup."
             )
-        """
         
     except Exception as e:
         logger.error(f"Failed to setup new user: {e}", exc_info=True)
@@ -281,14 +281,25 @@ async def ask_privacy_policy_confirmation_command(update: Update, context: Conte
 
         bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
         logger.info(f"ask_privacy_policy_confirmation_command started. user_id: {bot_user_id}")
-
+        
+        """
         if not is_user_in_records(record_id=bot_user_id):
             await send_message_to_user(update, context, text=FAIL_TO_FIND_USER_IN_RECORDS_TEXT)
             raise ValueError(f"ask_privacy_policy_confirmation_command: user {bot_user_id} not found in records")
+        """
+
+        if not is_user_in_db(record_id=bot_user_id, db_model=Manager):
+            await send_message_to_user(update, context, text=FAIL_TO_FIND_USER_IN_RECORDS_TEXT)
+            raise ValueError(f"ask_privacy_policy_confirmation_command: user {bot_user_id} not found in database")
 
         # ----- CHECK IF PRIVACY POLICY is already confirmed and STOP if it is -----
-
+        """
         if is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):
+            await send_message_to_user(update, context, text=SUCCESS_TO_GET_PRIVACY_POLICY_CONFIRMATION_TEXT)
+            return
+        """
+
+        if is_privacy_policy_confirmed_in_db(record_id=bot_user_id, db_model=Manager):
             await send_message_to_user(update, context, text=SUCCESS_TO_GET_PRIVACY_POLICY_CONFIRMATION_TEXT)
             return
 
@@ -362,10 +373,20 @@ async def handle_answer_policy_confirmation(update: Update, context: ContextType
             await send_message_to_user(update, context, text=FAIL_TECHNICAL_SUPPORT_TEXT)
             return
         privacy_policy_confirmation_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
+        
         # Update user records with selected vacancy data
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmed", value=privacy_policy_confirmation_user_decision)
+        """
+        update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmed", value=privacy_policy_confirmation_user_value)
+        """
+        privacy_policy_confirmation_user_value = True if privacy_policy_confirmation_user_decision == "yes" else False
+        update_user_record_id_db(record_id=bot_user_id, db_model=Manager, key="privacy_policy_confirmed", value=privacy_policy_confirmation_user_value)
+        
         current_time = datetime.now(timezone.utc).isoformat()
+        """
         update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmation_time", value=current_time)
+        """
+        update_user_record_id_db(record_id=bot_user_id, db_model=Manager, key="privacy_policy_confirmation_time", value=current_time)
+        
         logger.debug(f"Privacy policy confirmation user decision: {privacy_policy_confirmation_user_decision} at {current_time}")
 
         # ----- IF USER CHOSE "YES" download video to local storage -----

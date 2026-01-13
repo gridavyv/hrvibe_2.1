@@ -91,6 +91,42 @@ def is_user_in_db(record_id: str, db_model: Type[Base]) -> bool:
     finally:
         db.close()
 
+def is_user_privacy_policy_confirmed(record_id: str, db_model: Type[Base]) -> bool:
+    """
+    Check if a user's privacy policy is confirmed.
+    
+    Args:
+        record_id: The ID to check (as string)
+        db_model: The database model class (should be Manager, as only Manager has privacy_policy_confirmed field)
+    
+    Returns:
+        True if the user exists and privacy policy is confirmed, False otherwise
+    """
+    db = SessionLocal()
+    try:
+        # Only Manager model has privacy_policy_confirmed field
+        if db_model != Manager:
+            logger.warning(f"is_user_privacy_policy_confirmed: {db_model.__name__} does not have privacy_policy_confirmed field. Only Manager model supports this.")
+            return False
+        
+        # Query the manager
+        manager = db.query(Manager).filter(Manager.id == int(record_id)).first()
+        
+        if manager is None:
+            logger.debug(f"Manager {record_id} not found in database")
+            return False
+        
+        # Check privacy_policy_confirmed field
+        return manager.privacy_policy_confirmed is True
+        
+    except ValueError:
+        logger.error(f"Invalid record_id format: {record_id} (must be convertible to int for Manager)")
+        return False
+    except Exception as e:
+        logger.error(f"Error checking privacy policy confirmation for {record_id} (model: {db_model.__name__}): {e}")
+        return False
+    finally:
+        db.close()
 
 # ****** [update_data] ******
 
