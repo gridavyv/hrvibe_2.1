@@ -3,10 +3,15 @@ Video handling functionality
 """
 import json
 import logging
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
+
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 logger = logging.getLogger(__name__)
 from services.data_service import (
@@ -16,7 +21,7 @@ from services.data_service import (
     )
 from services.questionnaire_service import send_message_to_user
 
-from services.constants import (
+from shared_services.constants import (
     MAX_DURATION_SECS,
     SUCCESS_TO_SAVE_VIDEO_TEXT
     )

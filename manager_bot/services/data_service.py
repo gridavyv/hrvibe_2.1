@@ -3,9 +3,14 @@
 import os
 import json
 import logging
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
 from telegram import Update
 from telegram.ext import ContextTypes
@@ -14,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 
-from services.constants import (
+from shared_services.constants import (
     USERS_RECORDS_FILENAME, 
     RESUME_RECORDS_FILENAME,
     BOT_FOR_APPLICANTS_USERNAME,

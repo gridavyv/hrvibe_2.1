@@ -2,9 +2,16 @@ from openai import OpenAI
 import json
 import logging
 import os
+import sys
 import time
 from typing import List, Dict
-from services.constants import MODEL_NAME
+from pathlib import Path
+
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from shared_services.constants import MODEL_NAME
 
 logger = logging.getLogger(__name__)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

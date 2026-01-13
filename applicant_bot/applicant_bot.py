@@ -2,11 +2,17 @@
 
 import asyncio
 import logging
+import sys
 from datetime import datetime, timezone
 from typing import Optional
+from pathlib import Path
 import os
 import json
 import re
+
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +58,7 @@ from services.questionnaire_service import (
 )
 
 
-from services.constants import *
+from shared_services.constants import *
 
 
 ########################################################
@@ -368,7 +374,7 @@ async def ask_to_record_video_command(update: Update, context: ContextTypes.DEFA
         ]
     # Store button_text and callback_data options in context to use it later for button _text identification as this is not stored in "update.callback_query" object
     context.user_data["video_record_request_options"] = answer_options
-    await ask_question_with_options(update, context, question_text=WELCOME_VIDEO_RECORD_REQUEST_TEXT, answer_options=answer_options)
+    await ask_question_with_options(update, context, question_text=WELCOME_VIDEO_RECORD_REQUEST_TEXT_APPLICANT, answer_options=answer_options)
     logger.debug(f"Record applicant's video request question with options asked")
 
 
@@ -459,7 +465,7 @@ async def handle_answer_video_record_request(update: Update, context: ContextTyp
 
     if video_record_request_user_decision == "yes":
         logger.debug(f"Video record request user decision is yes")
-        await send_message_to_user(update, context, text=INSTRUCTIONS_TO_SHOOT_VIDEO_TEXT)
+        await send_message_to_user(update, context, text=INSTRUCTIONS_TO_SHOOT_VIDEO_TEXT_APPLICANT)
         
         # ----- NOW HANDLER LISTENING FOR VIDEO from user -----
 

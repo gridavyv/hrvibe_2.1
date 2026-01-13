@@ -5,11 +5,15 @@ import logging
 from typing import Optional
 from pathlib import Path
 
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from telegram._passport.passportdata import PassportData
 
 from services.data_service import create_json_file_with_dictionary_content
 
-from services.constants import EMPLOYER_STATE_RESPONSE, EMPLOYER_STATE_CONSIDER
+from shared_services.constants import EMPLOYER_STATE_RESPONSE, EMPLOYER_STATE_CONSIDER
 
 logger = logging.getLogger(__name__)
 

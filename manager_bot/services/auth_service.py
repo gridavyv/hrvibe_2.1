@@ -1,10 +1,17 @@
 # Simple requests-based script for HH API interaction
 import os
+import sys
 import requests
 import json
 import logging
 from typing import Optional, Dict
-from services.constants import BASE_URL
+from pathlib import Path
+
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from shared_services.constants import BASE_URL
 
 logger = logging.getLogger(__name__)
 

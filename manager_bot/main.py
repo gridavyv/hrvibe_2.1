@@ -1,12 +1,20 @@
 import asyncio
 import logging
 import os
+import sys
 from dotenv import load_dotenv
+from pathlib import Path
+
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from manager_bot import (
     create_manager_application, 
     ai_task_queue, 
-    start_command, 
+    start_command,
+)
+from shared_services.admin import (
     admin_get_users_command,
     admin_update_negotiations_command,
     admin_get_fresh_resumes_command,
@@ -25,7 +33,7 @@ from services.data_service import (
     create_data_directory,
     create_users_records_file,
 )
-from services.constants import (
+from shared_services.constants import (
     BTN_MENU,
     BTN_FEEDBACK,
     WELCOME_TEXT_WHEN_STARTING_BOT,

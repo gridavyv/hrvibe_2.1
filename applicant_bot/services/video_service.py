@@ -3,12 +3,18 @@ Video handling functionality
 """
 import json
 import logging
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from re import U
 import asyncio
 from telegram import Update
 from telegram.ext import ContextTypes
+
+# Add project root to path to access shared_services
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from services.data_service import (
     get_manager_user_id_from_applicant_bot_records,
     get_vacancy_id_from_applicant_bot_records,
@@ -16,20 +22,20 @@ from services.data_service import (
     get_resume_id_from_applicant_bot_records,
     update_applicant_bot_records_with_top_level_key
 )
-from services.constants import (
+from shared_services.constants import (
     FAIL_TECHNICAL_SUPPORT_TEXT,
-    SUCCESS_TO_SAVE_VIDEO_TEXT,
+    SUCCESS_TO_SAVE_VIDEO_TEXT_APPLICANT as SUCCESS_TO_SAVE_VIDEO_TEXT,
     INFO_ABOUT_VIDEO_DELETION_TEXT,
     FAIL_TO_DOWNLOAD_VIDEO_TEXT,
     INFO_DOWNLOADING_APPLICANT_VIDEO_STARTED_TEXT,
-    FAIL_TO_IDENTIFY_VIDEO_TEXT
+    FAIL_TO_IDENTIFY_VIDEO_TEXT,
+    MAX_DURATION_SECS
 )
 
 
 logger = logging.getLogger(__name__)
 
 from services.questionnaire_service import send_message_to_user
-from services.constants import MAX_DURATION_SECS
 
 
 def _validate_incoming_video(file_size: int, duration: int, max_duration: int = MAX_DURATION_SECS) -> str:
