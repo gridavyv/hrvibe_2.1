@@ -36,10 +36,10 @@ class Manager(Base):
     privacy_policy_confirmation_time = Column(TIMESTAMP(timezone=True))
     access_token_recieved = Column(Boolean, default=False, nullable=False)
     access_token = Column(String)
-    access_token_expires_at = Column(TIMESTAMP(timezone=True))
+    access_token_expires_at = Column(BigInteger)
     hh_data = Column(JSON)
     vacancy_selected = Column(Boolean, default=False, nullable=False)
-    vacancy_id = Column(BigInteger, primary_key=True)
+    vacancy_id = Column(String)
     vacancy_name = Column(String)
     vacancy_video_record_agreed = Column(Boolean, default=False, nullable=False)
     vacancy_video_sending_confirmed = Column(Boolean, default=False, nullable=False)
@@ -55,7 +55,7 @@ class Vacancy(Base):
     __tablename__ = "vacancies"
 
     id = Column(String, primary_key=True)
-    manager_id = Column(BigInteger, ForeignKey("managers.id"), nullable=False)
+    manager_id = Column(String, ForeignKey("managers.id"), nullable=False)
     name = Column(String)
     vacancy_description_recieved = Column(Boolean, default=False, nullable=False)
     sourcing_criterias_recieved = Column(Boolean, default=False, nullable=False)
@@ -69,8 +69,8 @@ class Resume(Base):
     __tablename__ = "resumes"
 
     id = Column(String, primary_key=True)
-    vacancy_id = Column(BigInteger, ForeignKey("vacancies.id"), nullable=False)
-    manager_id = Column(BigInteger, ForeignKey("managers.id"), nullable=False)
+    vacancy_id = Column(String, ForeignKey("vacancies.id"), nullable=False)
+    manager_id = Column(String, ForeignKey("managers.id"), nullable=False)
     first_name = Column(String)
     last_name = Column(String)
     phone = Column(String)

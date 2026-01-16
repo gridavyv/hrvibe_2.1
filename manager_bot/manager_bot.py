@@ -96,7 +96,7 @@ from services.auth_service import (
     callback_endpoint_healthcheck,
     BOT_SHARED_SECRET,
 )
-from services.hh_service import (
+from shared_services.hh_service import (
     get_user_info_from_hh, 
     clean_user_info_received_from_hh,
     get_employer_vacancies_from_hh,
@@ -132,6 +132,11 @@ from shared_services.db_service import (
     update_record_in_db,
     create_record_for_new_user_in_db,
     is_value_in_db,
+    get_column_value_in_db,
+)
+
+from shared_services.data_service import (
+    get_employer_id_from_json_value_from_db,
 )
 
 from database import (
@@ -246,7 +251,7 @@ async def setup_new_user_command(update: Update, context: ContextTypes.DEFAULT_T
         tg_user_attributes = ["username", "first_name", "last_name"]
         for item in tg_user_attributes:
             tg_user_attribute_value = get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute=item)
-            update_record_in_db(record_id=bot_user_id, db_model=Manager, updates={item: tg_user_attribute_value})
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={item: tg_user_attribute_value})
             # If cannot update user records, ValueError is raised from method: update_user_records_with_top_level_key()
         logger.debug(f"setup_new_user_command: {bot_user_id} in user records is updated with telegram user attributes.")
         
@@ -379,13 +384,13 @@ async def handle_answer_policy_confirmation(update: Update, context: ContextType
         update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmed", value=privacy_policy_confirmation_user_value)
         """
         privacy_policy_confirmation_user_value = True if privacy_policy_confirmation_user_decision == "yes" else False
-        update_record_in_db(record_id=bot_user_id, db_model=Manager, updates={"privacy_policy_confirmed": privacy_policy_confirmation_user_value})
+        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"privacy_policy_confirmed": privacy_policy_confirmation_user_value})
         
         current_time = datetime.now(timezone.utc).isoformat()
         """
         update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmation_time", value=current_time)
         """
-        update_record_in_db(record_id=bot_user_id, db_model=Manager, updates={"privacy_policy_confirmation_time": current_time})
+        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"privacy_policy_confirmation_time": current_time})
         
         logger.debug(f"Privacy policy confirmation user decision: {privacy_policy_confirmation_user_decision} at {current_time}")
 
@@ -469,9 +474,12 @@ async def hh_authorization_command(update: Update, context: ContextTypes.DEFAULT
                     access_token = get_access_token_from_callback_endpoint_resp(endpoint_response=endpoint_response)
                     expires_at = get_expires_at_from_callback_endpoint_resp(endpoint_response=endpoint_response)
                     if access_token is not None and expires_at is not None:
-                        update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token_recieved", value="yes")
+                        """update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token_recieved", value="yes")
                         update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token", value=access_token)
-                        update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token_expires_at", value=expires_at)
+                        update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token_expires_at", value=expires_at)"""
+                        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"access_token_recieved": True})
+                        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"access_token": access_token})
+                        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"access_token_expires_at": expires_at})
                         # If cannot update user records, ValueError is raised from method: update_user_records_with_top_level_key()
 
                     logger.info(f"Authorization successful on attempt {attempt}. Access token '{access_token}' and expires_at '{expires_at}' updated in records.")
@@ -513,12 +521,14 @@ async def pull_user_data_from_hh_command(update: Update, context: ContextTypes.D
 
         bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
         logger.info(f"pull_user_data_from_hh_command started. user_id: {bot_user_id}")
-        access_token = get_access_token_from_records(bot_user_id=bot_user_id)
+        """access_token = get_access_token_from_records(bot_user_id=bot_user_id)"""
+        access_token = get_column_value_in_db(db_model=Manager, record_id=bot_user_id, field_name="access_token")
 
         # ----- CHECK IF USER DATA is already in records and STOP if it is -----
 
         # Check if user is already authorized, if not, pull user data from HH
-        if is_hh_data_in_user_record(record_id=bot_user_id):
+        """if is_hh_data_in_user_record(record_id=bot_user_id):"""
+        if get_column_value_in_db(db_model=Manager, record_id=bot_user_id, field_name="hh_data") is not None:
             logger.debug(f"'bot_user_id': {bot_user_id} already has HH data in user record.")
             return 
             
@@ -529,7 +539,8 @@ async def pull_user_data_from_hh_command(update: Update, context: ContextTypes.D
         # Clean user info received from HH.ru API
         cleaned_hh_user_info = clean_user_info_received_from_hh(user_info=hh_user_info)
         # Update user info from HH.ru API in records
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="data_from_hh", value=cleaned_hh_user_info) # ValueError raised if fails
+        """update_user_records_with_top_level_key(record_id=bot_user_id, key="data_from_hh", value=cleaned_hh_user_info) # ValueError raised if fails"""
+        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"hh_data": cleaned_hh_user_info}) # ValueError raised if fails
 
         # ----- SELECT VACANCY -----
 
@@ -815,21 +826,25 @@ async def select_vacancy_command(update: Update, context: ContextTypes.DEFAULT_T
 
         bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
         logger.info(f"select_vacancy_command started. user_id: {bot_user_id}")
-        access_token = get_access_token_from_records(bot_user_id=bot_user_id)
+        """access_token = get_access_token_from_records(bot_user_id=bot_user_id)"""
+        access_token = get_column_value_in_db(db_model=Manager, record_id=bot_user_id, field_name="access_token")
 
         # ----- CHECK IF Privacy confirmed and VACANCY is selected and STOP if it is -----
 
-        if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):
+        """if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):"""
+        if not is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
             await send_message_to_user(update, context, text=MISSING_PRIVACY_POLICY_CONFIRMATION_TEXT)
             return
 
-        if is_vacancy_selected(record_id=bot_user_id):
+        """if is_vacancy_selected(record_id=bot_user_id):"""
+        if is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="vacancy_selected"):
             await send_message_to_user(update, context, text=SUCCESS_TO_SELECT_VACANCY_TEXT)
             return
 
         # ----- PULL ALL OPEN VACANCIES from HH and enrich records with it -----
 
-        employer_id = get_employer_id_from_records(record_id=bot_user_id)
+        """employer_id = get_employer_id_from_records(record_id=bot_user_id)"""
+        employer_id = get_employer_id_from_json_value_from_db(db_model=Manager, record_id=bot_user_id)
         if not employer_id:
             await send_message_to_user(update, context, text=FAILED_TO_GET_OPEN_VACANCIES_TEXT)
             # Raise exception to be caught by outer try-except block (which will notify admin)

@@ -6,7 +6,7 @@ import logging
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Type
 
 # Add project root to path to access shared_services
 project_root = Path(__file__).parent.parent.parent
@@ -24,6 +24,8 @@ from shared_services.constants import (
     RESUME_RECORDS_FILENAME,
     BOT_FOR_APPLICANTS_USERNAME,
     )
+from shared_services.db_service import get_column_value_in_db
+from database import Base
 
 # ****** METHODS with TAGS: [create_data] ******
 
@@ -564,6 +566,21 @@ def get_employer_id_from_records(record_id: str) -> Optional[str]:
     else:
         logger.debug(f"'record_id': {record_id} not found in {users_records_file_path}")
         return None
+
+def get_employer_id_from_json_value_from_db(db_model: Type[Base], record_id: str) -> Optional[str]:
+    """Get employer id from JSON value from database. TAGS: [get_data]"""
+    hh_data = get_column_value_in_db(db_model, record_id, "hh_data")
+    if not isinstance(hh_data, dict):
+        logger.debug(f"'record_id': {record_id} not found in DB or hh_data is empty")
+        return None
+
+    employer_id = hh_data.get("employer", {}).get("id")
+    if employer_id:
+        logger.debug(f"'employer_id': {employer_id} found for 'bot_user_id': {record_id} in DB")
+        return employer_id
+
+    logger.debug(f"'employer_id' not found in hh_data for 'bot_user_id': {record_id}")
+    return None
 
 
 def get_list_of_users_from_records() -> list[str]:

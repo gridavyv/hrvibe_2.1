@@ -137,6 +137,34 @@ def is_value_in_db(db_model: Type[Base], field_name: str, value: Any) -> bool:
     # returns True if the value is found in the database, False otherwise
     return match is not None
 
+
+# ****** [get_data] ******
+
+def get_column_value_in_db(db_model: Type[Base], record_id: str, field_name: str) -> Any:
+
+    method_name_for_logging = f"get_column_value_in_db: {db_model.__name__}.{field_name}"
+
+    column = db_model.__table__.columns.get(field_name)
+    if column is None:
+        logger.warning(f"{method_name_for_logging} does not have column {field_name}")
+        return None
+
+    id_column = db_model.__table__.columns.get("id")
+    if id_column is None:
+        logger.warning(f"{method_name_for_logging} does not have id column")
+        return None
+
+    if not isinstance(id_column.type, String):
+        logger.error(f"{method_name_for_logging}.id is not a String column")
+        return None
+
+    with SessionLocal() as db:
+        value = db.execute(
+            select(column).where(id_column == record_id)
+        ).scalar_one_or_none()
+
+    return value
+
 # ****** [update_data] ******
 
 def update_record_in_db(db_model: Type[Base], record_id: str, updates: Dict[str, Any]) -> None:

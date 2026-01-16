@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Get Manager by ID from database
-Usage: python3 local_db_setup/get_manager.py <manager_id>
+Usage: python3 local_db/get_manager.py <manager_id>
 """
 
 import os
@@ -16,6 +16,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 from database import SessionLocal, Manager
+from sqlalchemy.inspection import inspect
 
 def get_manager_by_id(manager_id):
     """Get manager by ID"""
@@ -28,21 +29,12 @@ def get_manager_by_id(manager_id):
             print("=" * 60)
             print(f"✅ Found Manager (ID: {manager_id})")
             print("=" * 60)
-            print(f"ID:                          {manager.id}")
-            print(f"Username:                    {manager.username or 'N/A'}")
-            print(f"First Name:                  {manager.first_name or 'N/A'}")
-            print(f"Last Name:                   {manager.last_name or 'N/A'}")
-            print(f"Privacy Policy Confirmed:    {manager.privacy_policy_confirmed}")
-            print(f"Access Token Received:        {manager.access_token_recieved}")
-            print(f"First Time Seen:             {manager.first_time_seen}")
-            print(f"Created At:                  {manager.created_at}")
-            print(f"Updated At:                  {manager.updated_at}")
-            
-            if manager.hh_data:
-                print(f"\nHH Data (JSON):")
-                import json
-                print(json.dumps(manager.hh_data, indent=2, ensure_ascii=False))
-            
+
+            mapper = inspect(Manager)
+            for column in mapper.columns:
+                value = getattr(manager, column.key)
+                print(f"{column.key:28} {value}")
+
             return manager
         else:
             print(f"❌ Manager with ID {manager_id} not found")
@@ -58,20 +50,13 @@ def get_manager_by_id(manager_id):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 local_db_setup/get_manager.py <manager_id>")
+        print("Usage: python3 local_db/get_manager.py <manager_id>")
         print("\nExample:")
-        print("  python3 local_db_setup/get_manager.py 123456789")
+        print("  python3 local_db/get_manager.py 123456789")
         sys.exit(1)
-    
-    try:
-        manager_id = int(sys.argv[1])
-        get_manager_by_id(manager_id)
-    except ValueError:
-        print(f"❌ Error: '{sys.argv[1]}' is not a valid ID (must be a number)")
-        sys.exit(1)
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        sys.exit(1)
+
+    manager_id = sys.argv[1]
+    get_manager_by_id(manager_id)
 
 if __name__ == "__main__":
     main()
