@@ -24,20 +24,204 @@ from shared_services.constants import (
     RESUME_RECORDS_FILENAME,
     BOT_FOR_APPLICANTS_USERNAME,
     )
-from shared_services.db_service import get_column_value_in_db
-from database import Base
+from shared_services.db_service import (
+    get_column_value_in_db, 
+    update_record_in_db,
+    is_value_in_db,
+    clear_column_value_in_db
+    )
 
-# ****** METHODS with TAGS: [create_data] ******
-
-def create_data_directory() -> Path:
-    # TAGS: [create_data],[directory_path]
-    """Create a directory for all data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
-    data_dir.mkdir(parents=True, exist_ok=True)
-    logger.debug(f"{data_dir} created or exists.")
-    return data_dir
+from database import Base, Manager
 
 
+# ****** METHODS with TAGS: [persistent_keyboard] ******
+
+'''
+def get_persistent_keyboard_messages(bot_user_id: str) -> list[tuple[int, int]]:
+    # TAGS: [persistent_keyboard]
+    """Get persistent keyboard message IDs for a user. Returns list of (chat_id, message_id) tuples."""
+    users_records_file_path = get_users_records_file_path()
+    try:
+        with open(users_records_file_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+        if bot_user_id in records:
+            keyboard_messages = records[bot_user_id].get("messages_with_keyboards", [])
+            # Convert list of lists to list of tuples
+            return [tuple(msg) for msg in keyboard_messages if isinstance(msg, (list, tuple)) and len(msg) == 2]
+        return []
+    except Exception as e:
+        logger.error(f"Error reading keyboard messages for {bot_user_id}: {e}")
+        return []
+'''
+
+def get_persistent_keyboard_messages_from_db(bot_user_id: str) -> list[tuple[int, int]]:
+    # TAGS: [persistent_keyboard]
+    """Get persistent keyboard message IDs for a user. Returns list of (chat_id, message_id) tuples."""
+    try:
+        if is_value_in_db(db_model=Manager, field_name="id", value=bot_user_id):
+            keyboard_messages = get_column_value_in_db(
+                db_model=Manager,
+                record_id=bot_user_id,
+                field_name="messages_with_keyboards",
+            )
+            # Convert list of lists to list of tuples
+            return [tuple(msg) for msg in keyboard_messages if isinstance(msg, (list, tuple)) and len(msg) == 2]
+        return []
+    except Exception as e:
+        logger.error(f"Error reading keyboard messages for {bot_user_id}: {e}")
+        return []
+
+'''
+def add_persistent_keyboard_message(bot_user_id: str, chat_id: int, message_id: int) -> None:
+    # TAGS: [persistent_keyboard]
+    """Add a keyboard message ID to persistent storage."""
+    users_records_file_path = get_users_records_file_path()
+    try:
+        with open(users_records_file_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+        
+        bot_user_id_str = str(bot_user_id)
+        if bot_user_id_str not in records:
+            logger.debug(f"User {bot_user_id_str} not found in records, cannot track keyboard")
+            return
+        
+        if "messages_with_keyboards" not in records[bot_user_id_str]:
+            records[bot_user_id_str]["messages_with_keyboards"] = []
+        
+        # Add if not already present
+        keyboard_messages = records[bot_user_id_str]["messages_with_keyboards"]
+        if [chat_id, message_id] not in keyboard_messages:
+            keyboard_messages.append([chat_id, message_id])
+            records[bot_user_id_str]["messages_with_keyboards"] = keyboard_messages
+            users_records_file_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+            logger.debug(f"Added keyboard message {message_id} to persistent storage for user {bot_user_id_str}")
+    except Exception as e:
+        logger.error(f"Error adding keyboard message to persistent storage: {e}")
+'''
+
+def add_persistent_keyboard_message_in_db(bot_user_id: str, chat_id: int, message_id: int) -> None:
+    # TAGS: [persistent_keyboard]
+    """Add a keyboard message ID to persistent storage in DB."""
+    method_name = "add_persistent_keyboard_message_in_db"
+    try:
+        keyboard_messages = get_column_value_in_db(
+            db_model=Manager,
+            record_id=bot_user_id,
+            field_name="messages_with_keyboards",
+        )
+
+        if keyboard_messages is None:
+            keyboard_messages = []
+        elif not isinstance(keyboard_messages, list):
+            logger.warning(f"{method_name}: invalid type for messages_with_keyboards, resetting")
+            keyboard_messages = []
+
+        if [chat_id, message_id] not in keyboard_messages:
+            keyboard_messages.append([chat_id, message_id])
+            update_record_in_db(
+                record_id=bot_user_id,
+                db_model=Manager,
+                updates={"messages_with_keyboards": keyboard_messages},
+            )
+            logger.debug(
+                f"{method_name}: added message {message_id} for user {bot_user_id}"
+            )
+    except Exception as e:
+        logger.error(f"{method_name}: error adding keyboard message: {e}")
+
+'''
+def remove_persistent_keyboard_message(bot_user_id: str, chat_id: int, message_id: int) -> None:
+    # TAGS: [persistent_keyboard]
+    """Remove a keyboard message ID from persistent storage."""
+    users_records_file_path = get_users_records_file_path()
+    try:
+        with open(users_records_file_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+        
+        bot_user_id_str = str(bot_user_id)
+        if bot_user_id_str not in records:
+            return
+        
+        if "messages_with_keyboards" in records[bot_user_id_str]:
+            keyboard_messages = records[bot_user_id_str]["messages_with_keyboards"]
+            records[bot_user_id_str]["messages_with_keyboards"] = [
+                msg for msg in keyboard_messages if not (msg[0] == chat_id and msg[1] == message_id)
+            ]
+            users_records_file_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+            logger.debug(f"Removed keyboard message {message_id} from persistent storage for user {bot_user_id_str}")
+    except Exception as e:
+        logger.error(f"Error removing keyboard message from persistent storage: {e}")
+'''
+
+def remove_persistent_keyboard_message_from_db(bot_user_id: str, chat_id: int, message_id: int) -> None:
+    # TAGS: [persistent_keyboard]
+    """Remove a keyboard message ID from persistent storage in DB."""
+    try:
+        if not is_value_in_db(db_model=Manager, field_name="id", value=bot_user_id):
+            return
+
+        keyboard_messages = get_column_value_in_db(
+            db_model=Manager,
+            record_id=bot_user_id,
+            field_name="messages_with_keyboards",
+        )
+        if not isinstance(keyboard_messages, list):
+            keyboard_messages = []
+
+        keyboard_messages = [
+            msg for msg in keyboard_messages if not (msg[0] == chat_id and msg[1] == message_id)
+        ]
+        update_record_in_db(
+            record_id=bot_user_id,
+            db_model=Manager,
+            updates={"messages_with_keyboards": keyboard_messages},
+        )
+        logger.debug(f"Removed keyboard message {message_id} from persistent storage for user {bot_user_id}")
+    except Exception as e:
+        logger.error(f"Error removing keyboard message from persistent storage: {e}")
+
+'''
+def clear_all_persistent_keyboard_messages(bot_user_id: str) -> None:
+    # TAGS: [persistent_keyboard]
+    """Clear all persistent keyboard messages for a user."""
+    users_records_file_path = get_users_records_file_path()
+    try:
+        with open(users_records_file_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+        
+        bot_user_id_str = str(bot_user_id)
+        if bot_user_id_str in records:
+            records[bot_user_id_str]["messages_with_keyboards"] = []
+            users_records_file_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
+            logger.debug(f"Cleared all persistent keyboard messages for user {bot_user_id_str}")
+    except Exception as e:
+        logger.error(f"Error clearing persistent keyboard messages: {e}")    
+'''
+
+def clear_all_persistent_keyboard_messages_from_db(bot_user_id: str) -> None:
+    # TAGS: [persistent_keyboard]
+    """Clear all persistent keyboard messages for a user."""
+    try:
+        if not is_value_in_db(db_model=Manager, field_name="id", value=bot_user_id):
+            return
+        clear_column_value_in_db(
+            db_model=Manager,
+            record_id=bot_user_id,
+            field_name="messages_with_keyboards",
+        )
+        logger.debug(f"Cleared all persistent keyboard messages for user {bot_user_id}")
+    except Exception as e:
+        logger.error(f"Error clearing persistent keyboard messages: {e}")    
+
+
+# ****** METHODS with TAGS: [format_data] ******
+
+def format_oauth_link_text(oauth_link: str) -> str:
+    # TAGS: [format_data]
+    """Format oauth link text. TAGS: [format_data]"""
+    return f"<a href=\"{oauth_link}\">Ссылка для авторизации</a>"
+
+'''
 def create_user_directory(bot_user_id: str) -> Path:
     # TAGS: [create_data],[directory_path]
     """Create a subdirectory for a unique user in the parent directory and return the path."""
@@ -211,44 +395,6 @@ def create_record_for_new_resume_id_in_resume_records(bot_user_id: str, vacancy_
         logger.debug(f"Skipping creation of new resume record: {resume_record_id_str} because it already exists in the file {resume_records_file_path}")
 
 
-def create_oauth_link(state: str) -> str:
-    # TAGS: [create_data]
-    """
-    Get the OAuth link for HH.ru authentication.
-    """
-    hh_client_id = os.getenv("HH_CLIENT_ID")
-    if not hh_client_id:
-        raise ValueError("HH_CLIENT_ID is not set in environment variables")
-    oauth_redirect_url = os.getenv("OAUTH_REDIRECT_URL")
-    if not oauth_redirect_url:
-        raise ValueError("OAUTH_REDIRECT_URL is not set in environment variables")
-    auth_link = f"https://hh.ru/oauth/authorize?response_type=code&client_id={hh_client_id}&state={state}&redirect_uri={oauth_redirect_url}"
-    return auth_link
-
-
-def create_tg_bot_link_for_applicant(bot_user_id: str, vacancy_id: str, resume_id: str) -> str:
-    """Create Telegram bot link for applicant to start the bot. TAGS: [create_data]
-    When the user taps it, Telegram sends your bot /start <payload>
-    The payload is read from message.from.id (Telegram user_id) and the <payload> in the same update and persist the mapping.
-    Example: https://t.me/{BOT_FOR_APPLICANTS_USERNAME}?start={bot_user_id}_{vacancy_id}_{resume_id}"""
-    payload = f"{bot_user_id}_{vacancy_id}_{resume_id}"
-    return f"https://t.me/{BOT_FOR_APPLICANTS_USERNAME}?start={payload}"
-
-# ****** METHODS with TAGS: [get_data] ******
-
-def get_data_directory() -> Path:
-    # TAGS: [get_data],[directory_path]
-    """Get the directory path for user data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
-    #return id if data_dir exists
-    if data_dir.exists():
-        return data_dir
-    #create it and return the path if it doesn't exist
-    else:
-        data_dir = create_data_directory()
-        return data_dir
-
-
 def get_directory_for_video_from_managers(bot_user_id: str, vacancy_id: str) -> Path:
     # TAGS: [get_data],[directory_path]
     """Get the directory path for managers videos."""
@@ -360,43 +506,6 @@ def get_resume_records_file_path(bot_user_id: str, vacancy_id: str) -> Path:
         return resume_records_file_path
 
 
-def get_tg_user_data_attribute_from_update_object(update: Update, tg_user_attribute: str) -> str | int | None | bool | list | dict:
-    """Collects Telegram user data from context and returns it as a dictionary. TAGS: [get_data]"""
-    tg_user = update.effective_user
-    if tg_user:
-        tg_user_attribute_value = tg_user.__getattribute__(tg_user_attribute)
-        logger.debug(f"'{tg_user_attribute}': {tg_user_attribute_value} found in update.")
-        return tg_user_attribute_value 
-    else:
-        logger.warning(f"'{tg_user_attribute}' not found in update. CHECK CORRECTNESS OF THE ATTRIBUTE NAME")
-        return None
-
-
-def get_decision_status_from_selected_callback_code(selected_callback_code: str) -> str:
-    #TAGS: [get_data]
-    """Extract the meaningful part of a callback code.
-    Args:
-        selected_callback_code (str): Selected callback code, e.g. 'action_code:value'
-    Returns:
-        str: The part after the last colon, or the original string if no colon is present.
-    """
-    if ":" in selected_callback_code:
-        return selected_callback_code.split(":")[-1].strip()
-    else:
-        return selected_callback_code
-
-
-def get_access_token_from_callback_endpoint_resp(endpoint_response: dict) -> Optional[str]:
-    # TAGS: [get_data]
-    """Get access token from endpoint response. TAGS: [get_data]"""
-    if isinstance(endpoint_response, dict):
-        # return access_token if it exists in endpoint_response, otherwise return None
-        return endpoint_response.get("access_token", None)
-    else:
-        logger.debug(f"'endpoint_response' is not a dictionary: {endpoint_response}")
-        return None
-
-
 def get_access_token_from_records(bot_user_id: str) -> Optional[str]:
     """Get access token from users records. TAGS: [get_data]"""
     users_records_file_path = get_users_records_file_path()
@@ -406,15 +515,6 @@ def get_access_token_from_records(bot_user_id: str) -> Optional[str]:
         return records[bot_user_id]["access_token"]
     else:
         logger.debug(f"'access_token' not found for 'bot_user_id': {bot_user_id} in {users_records_file_path}")
-        return None
-
-
-def get_expires_at_from_callback_endpoint_resp(endpoint_response: dict) -> Optional[int]:
-    """Get expires_at from endpoint response. TAGS: [get_data]"""
-    if isinstance(endpoint_response, dict):
-        return endpoint_response.get("expires_at", None)
-    else:
-        logger.debug(f"'endpoint_response' is not a dictionary: {endpoint_response}")
         return None
 
 
@@ -443,6 +543,7 @@ def get_target_vacancy_name_from_records(record_id: str) -> Optional[str]:
     logger.debug(f"'target vacancy name' not found for 'bot_user_id': {record_id} in {users_records_file}")
     return None
 
+'''
 
 def get_list_of_resume_ids_for_recommendation(bot_user_id: str, vacancy_id: str) -> list[str]:
     # TAGS: [get_data]
@@ -527,7 +628,7 @@ def get_resume_recommendation_text_from_resume_records(bot_user_id: str, vacancy
     return recommendation_text
 
 
-
+'''
 def get_path_to_video_from_applicant_from_resume_records(bot_user_id: str, vacancy_id: str, resume_record_id: str) -> Path:
     """Get path to video from applicant from resume records. TAGS: [get_data]"""
     resume_records_file_path = get_resume_records_file_path(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
@@ -538,21 +639,6 @@ def get_path_to_video_from_applicant_from_resume_records(bot_user_id: str, vacan
     if video_path_value is None:
         raise ValueError(f"'resume_video_path' not found for 'resume_record_id': {resume_record_id}")
     return Path(video_path_value)
-
-
-def get_reply_from_update_object(update: Update):
-    """ Get user reply to from the update object if user did one of below. TAGS: [get_data].
-    1. sent message (text, photo, video, etc.) - update.message OR
-    2. clicked button - update.callback_query.message
-    If none of the above, return None
-    """
-    if update.message:
-        return update.message.reply_text
-    elif update.callback_query and update.callback_query.message:
-        return update.callback_query.message.reply_text
-    else:
-        return None
-
 
 def get_employer_id_from_records(record_id: str) -> Optional[str]:
     """Get employer id from users records. TAGS: [get_data]"""
@@ -566,21 +652,6 @@ def get_employer_id_from_records(record_id: str) -> Optional[str]:
     else:
         logger.debug(f"'record_id': {record_id} not found in {users_records_file_path}")
         return None
-
-def get_employer_id_from_json_value_from_db(db_model: Type[Base], record_id: str) -> Optional[str]:
-    """Get employer id from JSON value from database. TAGS: [get_data]"""
-    hh_data = get_column_value_in_db(db_model, record_id, "hh_data")
-    if not isinstance(hh_data, dict):
-        logger.debug(f"'record_id': {record_id} not found in DB or hh_data is empty")
-        return None
-
-    employer_id = hh_data.get("employer", {}).get("id")
-    if employer_id:
-        logger.debug(f"'employer_id': {employer_id} found for 'bot_user_id': {record_id} in DB")
-        return employer_id
-
-    logger.debug(f"'employer_id' not found in hh_data for 'bot_user_id': {record_id}")
-    return None
 
 
 def get_list_of_users_from_records() -> list[str]:
@@ -630,98 +701,6 @@ def update_resume_record_with_top_level_key(bot_user_id: str, vacancy_id: str, r
             raise ValueError(f"Resume record {resume_record_id} does not exist in the file {resume_records_path}")
     except Exception as e:
         raise ValueError(f"Error updating resume record with top level key: {e}")
+'''
 
 
-# ****** METHODS with TAGS: [persistent_keyboard] ******
-
-
-def get_persistent_keyboard_messages(bot_user_id: str) -> list[tuple[int, int]]:
-    # TAGS: [persistent_keyboard]
-    """Get persistent keyboard message IDs for a user. Returns list of (chat_id, message_id) tuples."""
-    users_records_file_path = get_users_records_file_path()
-    try:
-        with open(users_records_file_path, "r", encoding="utf-8") as f:
-            records = json.load(f)
-        if bot_user_id in records:
-            keyboard_messages = records[bot_user_id].get("messages_with_keyboards", [])
-            # Convert list of lists to list of tuples
-            return [tuple(msg) for msg in keyboard_messages if isinstance(msg, (list, tuple)) and len(msg) == 2]
-        return []
-    except Exception as e:
-        logger.error(f"Error reading keyboard messages for {bot_user_id}: {e}")
-        return []
-
-
-def add_persistent_keyboard_message(bot_user_id: str, chat_id: int, message_id: int) -> None:
-    # TAGS: [persistent_keyboard]
-    """Add a keyboard message ID to persistent storage."""
-    users_records_file_path = get_users_records_file_path()
-    try:
-        with open(users_records_file_path, "r", encoding="utf-8") as f:
-            records = json.load(f)
-        
-        bot_user_id_str = str(bot_user_id)
-        if bot_user_id_str not in records:
-            logger.debug(f"User {bot_user_id_str} not found in records, cannot track keyboard")
-            return
-        
-        if "messages_with_keyboards" not in records[bot_user_id_str]:
-            records[bot_user_id_str]["messages_with_keyboards"] = []
-        
-        # Add if not already present
-        keyboard_messages = records[bot_user_id_str]["messages_with_keyboards"]
-        if [chat_id, message_id] not in keyboard_messages:
-            keyboard_messages.append([chat_id, message_id])
-            records[bot_user_id_str]["messages_with_keyboards"] = keyboard_messages
-            users_records_file_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-            logger.debug(f"Added keyboard message {message_id} to persistent storage for user {bot_user_id_str}")
-    except Exception as e:
-        logger.error(f"Error adding keyboard message to persistent storage: {e}")
-
-
-def remove_persistent_keyboard_message(bot_user_id: str, chat_id: int, message_id: int) -> None:
-    # TAGS: [persistent_keyboard]
-    """Remove a keyboard message ID from persistent storage."""
-    users_records_file_path = get_users_records_file_path()
-    try:
-        with open(users_records_file_path, "r", encoding="utf-8") as f:
-            records = json.load(f)
-        
-        bot_user_id_str = str(bot_user_id)
-        if bot_user_id_str not in records:
-            return
-        
-        if "messages_with_keyboards" in records[bot_user_id_str]:
-            keyboard_messages = records[bot_user_id_str]["messages_with_keyboards"]
-            records[bot_user_id_str]["messages_with_keyboards"] = [
-                msg for msg in keyboard_messages if not (msg[0] == chat_id and msg[1] == message_id)
-            ]
-            users_records_file_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-            logger.debug(f"Removed keyboard message {message_id} from persistent storage for user {bot_user_id_str}")
-    except Exception as e:
-        logger.error(f"Error removing keyboard message from persistent storage: {e}")
-
-
-def clear_all_persistent_keyboard_messages(bot_user_id: str) -> None:
-    # TAGS: [persistent_keyboard]
-    """Clear all persistent keyboard messages for a user."""
-    users_records_file_path = get_users_records_file_path()
-    try:
-        with open(users_records_file_path, "r", encoding="utf-8") as f:
-            records = json.load(f)
-        
-        bot_user_id_str = str(bot_user_id)
-        if bot_user_id_str in records:
-            records[bot_user_id_str]["messages_with_keyboards"] = []
-            users_records_file_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-            logger.debug(f"Cleared all persistent keyboard messages for user {bot_user_id_str}")
-    except Exception as e:
-        logger.error(f"Error clearing persistent keyboard messages: {e}")       
-
-
-# ****** METHODS with TAGS: [format_data] ******
-
-def format_oauth_link_text(oauth_link: str) -> str:
-    # TAGS: [format_data]
-    """Format oauth link text. TAGS: [format_data]"""
-    return f"<a href=\"{oauth_link}\">Ссылка для авторизации</a>"

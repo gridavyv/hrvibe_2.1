@@ -566,20 +566,25 @@ async def ask_to_record_video_command(update: Update, context: ContextTypes.DEFA
 
     bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
     logger.info(f"ask_to_record_video_command triggered by user_id: {bot_user_id}")
-    target_vacancy_name = get_target_vacancy_name_from_records(record_id=bot_user_id)
+    """target_vacancy_name = get_target_vacancy_name_from_records(record_id=bot_user_id)"""
+    target_vacancy_name = get_column_value_in_db(db_model=Manager, record_id=bot_user_id, field_name="vacancy_name")
 
     # ----- CHECK MUST CONDITIONS are met and STOP if not -----
 
-    if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):
+    """if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):"""
+    if not is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
+        logger.debug(f"'bot_user_id': {bot_user_id} doesn't have privacy policy confirmed.")
         await send_message_to_user(update, context, text=MISSING_PRIVACY_POLICY_CONFIRMATION_TEXT)
         return
 
-    if not is_vacancy_selected(record_id=bot_user_id):
+    """if not is_vacancy_selected(record_id=bot_user_id):"""
+    if not is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="vacancy_selected"):
         logger.debug(f"'bot_user_id': {bot_user_id} doesn't have target vacancy selected.")
         await send_message_to_user(update, context, text=MISSING_VACANCY_SELECTION_TEXT)
         return
 
-    if is_welcome_video_recorded(record_id=bot_user_id):
+    """if is_welcome_video_recorded(record_id=bot_user_id):"""
+    if is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="vacancy_video_recorded"):
         logger.debug(f"'bot_user_id': {bot_user_id} already has welcome video recorded for vacancy '{target_vacancy_name}'.")
         await send_message_to_user(update, context, text=SUCCESS_TO_RECORD_VIDEO_TEXT + f" Вакансия: '{target_vacancy_name}'.")
         return
@@ -675,7 +680,11 @@ async def handle_answer_video_record_request(update: Update, context: ContextTyp
         video_record_request_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         logger.debug(f"Video record request user decision: {video_record_request_user_decision}")
         # Update user records with selected vacancy data
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_record_agreed", value=video_record_request_user_decision)
+        """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_record_agreed", value=video_record_request_user_decision)"""
+        if video_record_request_user_decision is "yes":
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_record_agreed": True})
+        else:
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_record_agreed": False})
         logger.debug(f"User records updated")
     
     # ----- PROGRESS THROUGH THE VIDEO FLOW BASED ON THE USER'S RESPONSE -----
@@ -775,7 +784,11 @@ async def handle_answer_confrim_sending_video(update: Update, context: ContextTy
             return
         sending_video_confirmation_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         # Update user records with selected vacancy data
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_sending_confirmed", value=sending_video_confirmation_user_decision)
+        """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_sending_confirmed", value=sending_video_confirmation_user_decision)"""
+        if sending_video_confirmation_user_decision is "yes":
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_sending_confirmed": True})
+        else:
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_sending_confirmed": False})
 
     # ----- IF USER CHOSE "YES" start video download  -----
 
@@ -922,14 +935,15 @@ async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEF
 
         target_vacancy_id = str(callback_data)
         logger.debug(f"Target vacancy id: {target_vacancy_id}")
-        if target_vacancy_id:
+        """if target_vacancy_id:
+
             create_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
             create_video_from_managers_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
             create_video_from_applicants_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
             create_resumes_directory_and_subdirectories(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id, resume_subdirectories=RESUME_SUBDIRECTORIES_LIST)
             create_resume_records_file(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
         else:
-            raise ValueError(f"No target_vacancy_id {target_vacancy_id} found in callback_data")
+            raise ValueError(f"No target_vacancy_id {target_vacancy_id} found in callback_data")"""
         
         # ----- PULL OPTIONS from context (stored when question asked) -----
 
@@ -957,9 +971,12 @@ async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEF
             vacancy_name_value = selected_option[0]
             vacancy_id_value = selected_option[1]
             # Update user records with selected vacancy data
-            update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_selected", value="yes") # ValueError raised if fails
+            """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_selected", value="yes") # ValueError raised if fails
             update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_name", value=vacancy_name_value) # ValueError raised if fails
-            update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_id", value=vacancy_id_value) # ValueError raised if fails
+            update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_id", value=vacancy_id_value) # ValueError raised if fails"""
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_selected": True}) # ValueError raised if fails
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_name": vacancy_name_value}) # ValueError raised if fails
+            update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_id": vacancy_id_value}) # ValueError raised if fails
             
             # Inform user that selected vacancy is being processed
             if selected_option:

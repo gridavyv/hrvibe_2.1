@@ -197,3 +197,33 @@ def update_record_in_db(db_model: Type[Base], record_id: str, updates: Dict[str,
         db.close()
 
 
+def clear_column_value_in_db(db_model: Type[Base], record_id: str, field_name: str) -> None:
+    
+    method_name_for_logging = f"clear_column_value_in_db: {db_model.__name__}.{record_id}.{field_name}"
+
+    column = db_model.__table__.columns.get(field_name)
+    if column is None:
+        logger.warning(f"{method_name_for_logging} does not have column {field_name}")
+        return
+
+    id_column = db_model.__table__.columns.get("id")
+    if id_column is None:
+        logger.error(f"{method_name_for_logging} does not have id column")
+        return
+    if not isinstance(id_column.type, String):
+        logger.error(f"{method_name_for_logging}.id is not a String column")
+        return
+
+    db = SessionLocal()
+    try:
+        result = db.query(db_model).filter(id_column == record_id).update({field_name: None})
+        if result == 0:
+            logger.debug(f"{method_name_for_logging} not found in database")
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{method_name_for_logging} error: {e}")
+        raise
+    finally:
+        db.close()
+

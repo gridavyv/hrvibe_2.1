@@ -7,10 +7,10 @@ from telegram.constants import ParseMode
 logger = logging.getLogger(__name__)
 
 from services.data_service import (
-    add_persistent_keyboard_message,
-    remove_persistent_keyboard_message,
-    get_persistent_keyboard_messages,
-    clear_all_persistent_keyboard_messages,
+    add_persistent_keyboard_message_in_db,
+    remove_persistent_keyboard_message_from_db,
+    get_persistent_keyboard_messages_from_db,
+    clear_all_persistent_keyboard_messages_from_db,
 )
 
 
@@ -44,7 +44,7 @@ def _remove_message_from_keyboard_tracking(update: Update, context: ContextTypes
     # Remove from persistent storage
     bot_user_id = update.effective_user.id if update.effective_user else None
     if bot_user_id:
-        remove_persistent_keyboard_message(
+        remove_persistent_keyboard_message_from_db(
             bot_user_id=str(bot_user_id),
             chat_id=chat_id,
             message_id=message_id
@@ -73,7 +73,7 @@ async def clear_all_unprocessed_keyboards(update: Update, context: ContextTypes.
                 messages_to_clear.add((msg_chat_id, message_id))
     
     # Get from persistent storage
-    persistent_messages = get_persistent_keyboard_messages(
+    persistent_messages = get_persistent_keyboard_messages_from_db(
         bot_user_id=str(bot_user_id)
     )
     for msg_chat_id, message_id in persistent_messages:
@@ -100,7 +100,7 @@ async def clear_all_unprocessed_keyboards(update: Update, context: ContextTypes.
         context.user_data["messages_with_keyboards"] = []
     
     # Clear persistent storage
-    clear_all_persistent_keyboard_messages(
+    clear_all_persistent_keyboard_messages_from_db(
         bot_user_id=str(bot_user_id)
     )
     

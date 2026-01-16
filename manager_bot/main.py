@@ -30,8 +30,7 @@ from shared_services.admin import (
 )
 
 from services.data_service import (
-    create_data_directory,
-    create_users_records_file,
+    create_data_directories,
 )
 from shared_services.constants import (
     BTN_MENU,
@@ -176,7 +175,7 @@ def main():
 
     # ------------- SETUP OF THE DATA DIRECTORY and USER RECORDS FILE -------------
 
-    create_users_records_file() # will be skipped if exist
+    create_data_directories() # will be skipped if exist
 
     # ------------- STARTING OF THE MANAGER BOT -------------
 

@@ -47,6 +47,7 @@ class Manager(Base):
     vacancy_video_path = Column(String)
     vacancy_description_recieved = Column(Boolean, default=False, nullable=False)
     vacancy_sourcing_criterias_recieved = Column(Boolean, default=False, nullable=False)
+    messages_with_keyboards = Column(JSON, default=list)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 

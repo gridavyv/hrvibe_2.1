@@ -11,7 +11,7 @@ sys.path.insert(0, str(project_root))
 
 from telegram._passport.passportdata import PassportData
 
-from services.data_service import create_json_file_with_dictionary_content
+from shared_services.data_service import create_json_file_with_dictionary_content
 
 from shared_services.constants import EMPLOYER_STATE_RESPONSE, EMPLOYER_STATE_CONSIDER
 

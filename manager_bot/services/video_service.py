@@ -9,11 +9,18 @@ from pathlib import Path
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from shared_services.db_service import (
+    get_column_value_in_db,
+    update_record_in_db
+)
+from database import Manager
+
 # Add project root to path to access shared_services
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 logger = logging.getLogger(__name__)
+
 from services.data_service import (
     get_target_vacancy_id_from_records,
     get_directory_for_video_from_managers,
@@ -24,6 +31,10 @@ from services.questionnaire_service import send_message_to_user
 from shared_services.constants import (
     MAX_DURATION_SECS,
     SUCCESS_TO_SAVE_VIDEO_TEXT
+    )
+
+from shared_services.data_service import (
+    get_data_subdirectory_path
     )
 
 
@@ -119,20 +130,22 @@ async def download_incoming_video_locally(update: Update, context: ContextTypes.
     try:
         query = update.callback_query
         bot_user_id = user_id
-        target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)        
-        video_dir_path = get_directory_for_video_from_managers(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
+        """target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
+        video_dir_path = get_directory_for_video_from_managers(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)"""
+        video_dir_path = get_data_subdirectory_path(subdirectory_name="videos")
+        vacancy_id = get_column_value_in_db(db_model=Manager, record_id=bot_user_id, field_name="vacancy_id")
         logger.info(f"download_incoming_video_locally: target video_dir_path={video_dir_path}")
 
         if video_dir_path is None:
-            logger.error(f"download_incoming_video_locally: Target video_dir_path to save video for managers not found. Bot user id: {bot_user_id}, vacancy id: {target_vacancy_id}")
-            raise ValueError(f"Video directory path for managers not found for bot user id: {bot_user_id}, vacancy id: {target_vacancy_id}")
+            logger.error(f"download_incoming_video_locally: Target video_dir_path to save video not found.")
+            raise ValueError(f"Video directory path not found.")
 
         # Generate unique filename with appropriate extension
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         if file_type == "video_note":
-            filename = f"manager_{bot_user_id}_vacancy_{target_vacancy_id}_time_{timestamp}_note.mp4"
+            filename = f"manager_{bot_user_id}_vacancy_{vacancy_id}_time_{timestamp}_note.mp4"
         else:
-            filename = f"manager_{bot_user_id}_vacancy_{target_vacancy_id}_time_{timestamp}.mp4"
+            filename = f"manager_{bot_user_id}_vacancy_{vacancy_id}_time_{timestamp}.mp4"
 
         video_file_path = video_dir_path / filename
         logger.info(f"download_incoming_video_locally: Target video file path to save video for managers: {video_file_path}")
@@ -150,8 +163,11 @@ async def download_incoming_video_locally(update: Update, context: ContextTypes.
         logger.info(f"download_incoming_video_locally: Target video file from manager downloaded to: {video_file_path}")
 
         # Update user records with video received and video path
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_received", value="yes")
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_path", value=str(video_file_path))
+        """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_received", value="yes")
+        update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_path", value=str(video_file_path))"""
+        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_received": True})
+        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_path": str(video_file_path)})
+
         logger.info(f"download_incoming_video_locally: User records updated with video received and video path")
 
         # Clear pending video data from context object
