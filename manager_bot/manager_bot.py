@@ -128,10 +128,10 @@ from services.status_validation_service import is_vacany_data_enough_for_resume_
 from shared_services.constants import *
 
 from shared_services.db_service import (
-    is_user_in_db, 
-    is_privacy_policy_confirmed_in_db,
+    is_boolean_field_true_in_db,
+    update_record_in_db,
     create_record_for_new_user_in_db,
-    update_user_record_id_db,
+    is_value_in_db,
 )
 
 from database import (
@@ -238,15 +238,15 @@ async def setup_new_user_command(update: Update, context: ContextTypes.DEFAULT_T
             create_user_directory(bot_user_id=bot_user_id)
         """
         
-        if not is_user_in_db(record_id=bot_user_id, db_model=Manager):
-            create_record_for_new_user_in_db(record_id=bot_user_id, db_model=Manager)
+        if not is_value_in_db(db_model=Manager, field_name="id", value=bot_user_id):
+            create_record_for_new_user_in_db(db_model=Manager, record_id=bot_user_id)
 
         # ------ ENRICH RECORDS with NEW USER DATA ------
 
         tg_user_attributes = ["username", "first_name", "last_name"]
         for item in tg_user_attributes:
             tg_user_attribute_value = get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute=item)
-            update_user_record_id_db(record_id=bot_user_id, db_model=Manager, key=item, value=tg_user_attribute_value)
+            update_record_in_db(record_id=bot_user_id, db_model=Manager, updates={item: tg_user_attribute_value})
             # If cannot update user records, ValueError is raised from method: update_user_records_with_top_level_key()
         logger.debug(f"setup_new_user_command: {bot_user_id} in user records is updated with telegram user attributes.")
         
@@ -288,7 +288,7 @@ async def ask_privacy_policy_confirmation_command(update: Update, context: Conte
             raise ValueError(f"ask_privacy_policy_confirmation_command: user {bot_user_id} not found in records")
         """
 
-        if not is_user_in_db(record_id=bot_user_id, db_model=Manager):
+        if not is_value_in_db(db_model=Manager, field_name="id", value=bot_user_id):
             await send_message_to_user(update, context, text=FAIL_TO_FIND_USER_IN_RECORDS_TEXT)
             raise ValueError(f"ask_privacy_policy_confirmation_command: user {bot_user_id} not found in database")
 
@@ -299,7 +299,7 @@ async def ask_privacy_policy_confirmation_command(update: Update, context: Conte
             return
         """
 
-        if is_privacy_policy_confirmed_in_db(record_id=bot_user_id, db_model=Manager):
+        if is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
             await send_message_to_user(update, context, text=SUCCESS_TO_GET_PRIVACY_POLICY_CONFIRMATION_TEXT)
             return
 
@@ -379,13 +379,13 @@ async def handle_answer_policy_confirmation(update: Update, context: ContextType
         update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmed", value=privacy_policy_confirmation_user_value)
         """
         privacy_policy_confirmation_user_value = True if privacy_policy_confirmation_user_decision == "yes" else False
-        update_user_record_id_db(record_id=bot_user_id, db_model=Manager, key="privacy_policy_confirmed", value=privacy_policy_confirmation_user_value)
+        update_record_in_db(record_id=bot_user_id, db_model=Manager, updates={"privacy_policy_confirmed": privacy_policy_confirmation_user_value})
         
         current_time = datetime.now(timezone.utc).isoformat()
         """
         update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmation_time", value=current_time)
         """
-        update_user_record_id_db(record_id=bot_user_id, db_model=Manager, key="privacy_policy_confirmation_time", value=current_time)
+        update_record_in_db(record_id=bot_user_id, db_model=Manager, updates={"privacy_policy_confirmation_time": current_time})
         
         logger.debug(f"Privacy policy confirmation user decision: {privacy_policy_confirmation_user_decision} at {current_time}")
 
@@ -423,11 +423,13 @@ async def hh_authorization_command(update: Update, context: ContextTypes.DEFAULT
         logger.info(f"hh_authorization_command started. user_id: {bot_user_id}")
         
         # ----- CHECK IF NO Privacy policy consent or AUTHORIZAED already and STOP if it is -----
-        if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):
+        """if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):"""
+        if not is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
             await send_message_to_user(update, context, text=MISSING_PRIVACY_POLICY_CONFIRMATION_TEXT)
             return
 
-        if is_user_authorized(record_id=bot_user_id):
+        """if is_user_authorized(record_id=bot_user_id):"""
+        if is_boolean_field_true_in_db(db_model=Manager, record_id=bot_user_id, field_name="access_token_recieved"):
             await send_message_to_user(update, context, text=SUCCESS_TO_HH_AUTHORIZATION_TEXT)
             return
 
@@ -1781,7 +1783,8 @@ async def handle_invite_to_interview_button(update: Update, context: ContextType
 
 async def user_status(bot_user_id: str) -> dict:
     status_dict = {}
-    status_dict["bot_authorization"] = is_user_in_records(record_id=bot_user_id)
+    """status_dict["bot_authorization"] = is_user_in_records(record_id=bot_user_id)"""
+    status_dict["bot_authorization"] = is_value_in_db(db_model=Manager, field_name="id", value=bot_user_id)
     status_dict["privacy_policy_confirmation"] = is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id)
     status_dict["hh_authorization"] = is_user_authorized(record_id=bot_user_id)
     status_dict["vacancy_selection"] = is_vacancy_selected(record_id=bot_user_id)
@@ -1985,7 +1988,8 @@ async def handle_feedback_message(update: Update, context: ContextTypes.DEFAULT_
             try:
                 with open(user_records_path, "r", encoding="utf-8") as f:
                     records = json.load(f)
-                    if is_user_in_records(record_id=bot_user_id):
+                    """if is_user_in_records(record_id=bot_user_id):"""
+                    if is_value_in_db(db_model=Manager, field_name="id", value=bot_user_id):
                         username = records[bot_user_id].get("username", "N/A")
                         first_name = records[bot_user_id].get("first_name", "N/A")
                         last_name = records[bot_user_id].get("last_name", "N/A")

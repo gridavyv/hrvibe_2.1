@@ -8,13 +8,14 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, List, Type, Any
+from typing import Optional, List, Type, Any, Dict
 
 # Add project root to path to access shared config.py
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 from telegram import Update
+from sqlalchemy import select, Boolean, String
 
 from config import *
 from database import SessionLocal, Manager, Vacancy, Resume, Base
@@ -42,19 +43,30 @@ logger = logging.getLogger(__name__)
 
 # ****** [create_data] ******
 
-def create_record_for_new_user_in_db(record_id: str, db_model: Type[Base]) -> None:
+def create_record_for_new_user_in_db(db_model: Type[Base], record_id: str) -> None:
     """ Args:
         record_id: The ID to create (as string)
         db_model: The database model class (Manager, Resume, Vacancy, etc.)
     """
+    id_column = db_model.__table__.columns.get("id")
+    if id_column is None:
+        logger.error(f"{db_model.__name__} does not have id column")
+        return
+
+    if not isinstance(id_column.type, String):
+        logger.error(f"{db_model.__name__}.id is not a String column")
+        return
+
+    record_id_value: Any = record_id
+
     db = SessionLocal()
     try:
-        if db.query(db_model).filter(db_model.id == int(record_id)).first():
+        if db.query(db_model).filter(id_column == record_id_value).first():
             logger.debug(f"{db_model.__name__} {record_id} уже существует.")
             return
         # create new user record in database with minimum available attributes, other attributes will be updated later
         new_record = db_model(
-            id=int(record_id),
+            id=record_id_value,
             first_time_seen=datetime.now(timezone.utc)
         )
         db.add(new_record)
@@ -71,79 +83,89 @@ def create_record_for_new_user_in_db(record_id: str, db_model: Type[Base]) -> No
 # ****** [status_validation] ******
 
 
-def is_user_in_db(record_id: str, db_model: Type[Base]) -> bool:
-    """ Args:
-        record_id: The ID to check (as string)
-        db_model: The database model class (Manager, Resume, Vacancy, etc.)
-    """
-    db = SessionLocal()
-    try:
-        if db_model == Manager:
-            return db.query(db_model).filter(db_model.id == int(record_id)).first() is not None
-        elif db_model == Resume:
-            return db.query(db_model).filter(db_model.id == record_id).first() is not None
-        else:
-            logger.error(f"Неизвестная модель: {db_model.__name__}")
-            return False
-    except Exception as e:
-        logger.error(f"Ошибка при проверке наличия записи {record_id} в БД (модель: {db_model.__name__}): {e}")
-        return False
-    finally:
-        db.close()
+def is_boolean_field_true_in_db(db_model: Type[Base], record_id: str, field_name: str) -> bool:
+    
+    method_name_for_logging = f"is_boolean_field_true_in_db: {db_model.__name__}.{field_name}"
 
-def is_user_privacy_policy_confirmed(record_id: str, db_model: Type[Base]) -> bool:
-    """
-    Check if a user's privacy policy is confirmed.
-    
-    Args:
-        record_id: The ID to check (as string)
-        db_model: The database model class (should be Manager, as only Manager has privacy_policy_confirmed field)
-    
-    Returns:
-        True if the user exists and privacy policy is confirmed, False otherwise
-    """
-    db = SessionLocal()
-    try:
-        # Only Manager model has privacy_policy_confirmed field
-        if db_model != Manager:
-            logger.warning(f"is_user_privacy_policy_confirmed: {db_model.__name__} does not have privacy_policy_confirmed field. Only Manager model supports this.")
-            return False
-        
-        # Query the manager
-        manager = db.query(Manager).filter(Manager.id == int(record_id)).first()
-        
-        if manager is None:
-            logger.debug(f"Manager {record_id} not found in database")
-            return False
-        
-        # Check privacy_policy_confirmed field
-        return manager.privacy_policy_confirmed is True
-        
-    except ValueError:
-        logger.error(f"Invalid record_id format: {record_id} (must be convertible to int for Manager)")
+    # ---- Validate the model/column before querying ----
+
+    # fetches the column object by name
+    column = db_model.__table__.columns.get(field_name)
+    if column is None:
+        logger.warning(f"{method_name_for_logging} does not have column {field_name}")
         return False
-    except Exception as e:
-        logger.error(f"Error checking privacy policy confirmation for {record_id} (model: {db_model.__name__}): {e}")
+    # ensures the column is a Boolean
+    if not isinstance(column.type, Boolean):
+        logger.warning(f"{method_name_for_logging} is not a Boolean column")
         return False
-    finally:
-        db.close()
+    # ensures the model has an id column
+    id_column = db_model.__table__.columns.get("id")
+    if id_column is None:
+        logger.warning(f"{method_name_for_logging} does not have id column")
+        return False
+
+    if not isinstance(id_column.type, String):
+        logger.error(f"{method_name_for_logging}.id is not a String column")
+        return False
+
+    with SessionLocal() as db:
+        value = db.execute(
+            select(column).where(id_column == record_id)
+        ).scalar_one_or_none()
+
+    if value is None:
+        logger.debug(f"{method_name_for_logging} {record_id} not found in database")
+        return False
+
+    return value
+
+
+def is_value_in_db(db_model: Type[Base], field_name: str, value: Any) -> bool:
+    
+    method_name_for_logging = f"is_value_in_db: {db_model.__name__}.{field_name}"
+
+    column = db_model.__table__.columns.get(field_name)
+    if column is None:
+        logger.warning(f"{method_name_for_logging} does not have column {field_name}")
+        return False
+
+    with SessionLocal() as db:
+        match = db.execute(
+            select(column).where(column == value)
+        ).scalar_one_or_none()
+
+    # returns True if the value is found in the database, False otherwise
+    return match is not None
 
 # ****** [update_data] ******
 
-def update_user_record_id_db(record_id: str, db_model: Type[Base], key: str, value: Any) -> None:
-    """ Args:
-        record_id: The ID to update (as string)
-        db_model: The database model class (Manager, Resume, Vacancy, etc.)
-        key: The key/attribute name to update
-        value: The value to set for the key
-    """
+def update_record_in_db(db_model: Type[Base], record_id: str, updates: Dict[str, Any]) -> None:
+
+    method_name_for_logging = f"update_record_in_db: {db_model.__name__}.{record_id}"
+
+    if not updates:
+        logger.warning(f"{method_name_for_logging} no updates provided")
+        return
+
+    id_column = db_model.__table__.columns.get("id")
+    if id_column is None:
+        logger.error(f"{method_name_for_logging} does not have id column")
+        return
+    if not isinstance(id_column.type, String):
+        logger.error(f"{method_name_for_logging}.id is not a String column")
+        return
+
     db = SessionLocal()
     try:
-        db.query(db_model).filter(db_model.id == int(record_id)).update({key: value})
+        result = db.query(db_model).filter(id_column == record_id).update(updates)
+        if result == 0:
+            logger.debug(f"{method_name_for_logging} not found in database")
         db.commit()
     except Exception as e:
         db.rollback()
-        logger.error(f"Ошибка при обновлении записи {record_id} в БД (модель: {db_model.__name__}): {e}")
+        logger.error(f"{method_name_for_logging} error: {e}")
         raise
     finally:
         db.close()
+
+
