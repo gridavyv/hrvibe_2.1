@@ -18,7 +18,7 @@ from telegram import Update
 from sqlalchemy import select, Boolean, String
 
 from config import *
-from database import SessionLocal, Managers, Vacancies, Resumes, Base
+from database import SessionLocal, Managers, Vacancies, Negotiations, Base
 from shared_services.constants import (
     BOT_FOR_APPLICANTS_USERNAME,
     AUTH_REQ_TEXT,
@@ -43,10 +43,10 @@ logger = logging.getLogger(__name__)
 
 # ****** [create_data] ******
 
-def create_record_for_new_user_in_db(db_model: Type[Base], record_id: str) -> None:
+def create_new_record_in_db(db_model: Type[Base], record_id: str) -> None:
     """ Args:
         record_id: The ID to create (as string)
-        db_model: The database model class (Managers, Vacancies, Resumes, etc.)
+        db_model: The database model class (Managers, Vacancies, Negotiations, etc.)
     """
     id_column = db_model.__table__.columns.get("id")
     if id_column is None:
@@ -164,6 +164,85 @@ def get_column_value_in_db(db_model: Type[Base], record_id: str, field_name: str
         ).scalar_one_or_none()
 
     return value
+
+
+def get_column_value_by_field(db_model: Type[Base], search_field_name: str, search_value: Any, target_field_name: str) -> Any:
+    """Get a column value from a record found by a field other than id.
+    Args:
+        db_model: The database model class (Managers, Vacancies, Negotiations, etc.)
+        search_field_name: The field name to search by (e.g., "manager_id")
+        search_value: The value to search for
+        target_field_name: The field name to get the value from (e.g., "name")
+    Returns:
+        The value of the target field, or None if not found
+    """
+    method_name_for_logging = f"get_column_value_by_field: {db_model.__name__}.{search_field_name}={search_value}.{target_field_name}"
+    
+    search_column = db_model.__table__.columns.get(search_field_name)
+    if search_column is None:
+        logger.warning(f"{method_name_for_logging} does not have search column {search_field_name}")
+        return None
+    
+    target_column = db_model.__table__.columns.get(target_field_name)
+    if target_column is None:
+        logger.warning(f"{method_name_for_logging} does not have target column {target_field_name}")
+        return None
+    
+    with SessionLocal() as db:
+        value = db.execute(
+            select(target_column).where(search_column == search_value)
+        ).scalar_one_or_none()
+    
+    return value
+
+
+def update_column_value_by_field(
+    db_model: Type[Base], 
+    search_field_name: str, 
+    search_value: Any, 
+    target_field_name: str, 
+    new_value: Any
+) -> bool:
+    """Update a column value in a record found by a field other than id.
+    
+    Args:
+        db_model: The database model class (Managers, Vacancies, Negotiations, etc.)
+        search_field_name: The field name to search by (e.g., "manager_id")
+        search_value: The value to search for
+        target_field_name: The field name to update (e.g., "name")
+        new_value: The new value to set
+    
+    Returns:
+        True if update was successful, False otherwise
+    """
+    method_name_for_logging = f"update_column_value_by_field: {db_model.__name__}.{search_field_name}={search_value}.{target_field_name}"
+    
+    search_column = db_model.__table__.columns.get(search_field_name)
+    if search_column is None:
+        logger.warning(f"{method_name_for_logging} does not have search column {search_field_name}")
+        return False
+    
+    target_column = db_model.__table__.columns.get(target_field_name)
+    if target_column is None:
+        logger.warning(f"{method_name_for_logging} does not have target column {target_field_name}")
+        return False
+    
+    db = SessionLocal()
+    try:
+        result = db.query(db_model).filter(search_column == search_value).update({target_field_name: new_value})
+        if result == 0:
+            logger.debug(f"{method_name_for_logging} no records found to update")
+            return False
+        db.commit()
+        logger.debug(f"{method_name_for_logging} successfully updated {result} record(s)")
+        return True
+    except Exception as e:
+        db.rollback()
+        logger.error(f"{method_name_for_logging} error: {e}")
+        raise
+    finally:
+        db.close()
+
 
 # ****** [update_data] ******
 

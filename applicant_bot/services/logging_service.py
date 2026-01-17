@@ -17,7 +17,7 @@ def setup_logging(max_bytes: int = 20 * 1024 * 1024, backup_count: int = 20):
 
     # ------------- CREATION OF LOGGING FILE -------------
 
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
+    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
     logs_dir = data_dir / "logs" / "applicant_bot_logs"
     # Create logs directory and all parent directories if they don't exist
     logs_dir.mkdir(parents=True, exist_ok=True)

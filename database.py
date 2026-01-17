@@ -60,22 +60,22 @@ class Vacancies(Base):
     sourcing_criterias_recieved = Column(Boolean, default=False, nullable=False)
     sourcing_criterias_json = Column(JSONB)
     negotiations_collection_recieved = Column(Boolean, default=False, nullable=False)
-    negotiations_collection_json = Column(JSONB)
+    negotiations_collection_path = Column(String)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 
 
-class Resumes(Base):
-    __tablename__ = "resumes"
+class Negotiations(Base):
+    __tablename__ = "negotiations"
 
     id = Column(String, primary_key=True)
     vacancy_id = Column(String, ForeignKey("vacancies.id"), nullable=False)
-    manager_id = Column(String, ForeignKey("managers.id"), nullable=False)
+    resume_id = Column(String)
     applicant_first_name = Column(String)
     applicant_last_name = Column(String)
     applicant_phone = Column(String)
     applicant_email = Column(String)
-    ai_analysis = Column(JSONB)
+    resume_ai_analysis = Column(JSONB)
     resume_sorting_status = Column(String, default="new")
     link_to_tg_bot_sent = Column(Boolean, default=False, nullable=False)
     video_received = Column(Boolean, default=False, nullable=False)

@@ -62,9 +62,9 @@ def get_employer_id_from_json_value_from_db(db_model: Type[Base], record_id: str
 def create_data_directories() -> Path:
     # TAGS: [create_data],[directory_path]
     """Create a directory for all data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
+    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
     data_dir.mkdir(parents=True, exist_ok=True)
-    list_of_sub_directories = ["videos", "vacancy_descriptions", "vacancy_sourcing_criterias", "negotiations", "resumes"]
+    list_of_sub_directories = ["videos", "negotiations", "resumes"]
     for sub_directory in list_of_sub_directories:
         sub_directory_path = data_dir / sub_directory
         sub_directory_path.mkdir(parents=True, exist_ok=True)
@@ -113,7 +113,7 @@ def create_tg_bot_link_for_applicant(bot_user_id: str, vacancy_id: str, resume_i
 def get_data_directory() -> Path:
     # TAGS: [get_data],[directory_path]
     """Get the directory path for user data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
+    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
     #return id if data_dir exists
     if data_dir.exists():
         return data_dir
@@ -464,12 +464,14 @@ def create_users_records_file() -> Path:
     else:
         logger.debug(f"{users_records_file_path} already exists.")
     return users_records_file_path
-
+'''
 
 def create_resume_records_file(bot_user_id: str, vacancy_id: str) -> None:
     # TAGS: [create_data],[file_path]
     """Create a file with resume data records if it doesn't exist."""
-    resume_data_dir = get_resume_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
+    resume_data_dir = ""
+    if resume_data_dir is None:
+        raise ValueError(f"Resume directory not found for user {bot_user_id} and vacancy {vacancy_id}. Vacancy directory may not exist or resumes directory may not be created.")
     resume_records_file_path = resume_data_dir / f"{RESUME_RECORDS_FILENAME}.json"
     if not resume_records_file_path.exists():
         resume_records_file_path.write_text(json.dumps({}), encoding="utf-8")
@@ -477,7 +479,7 @@ def create_resume_records_file(bot_user_id: str, vacancy_id: str) -> None:
     else:
         logger.debug(f"{resume_records_file_path} already exists.")
 
-
+'''
 def create_json_file_with_dictionary_content(file_path: Path, content_to_write: dict) -> None:
     # TAGS: [create_data],[file_path]
     """Create a JSON file from a dictionary.
@@ -657,12 +659,12 @@ def get_users_records_file_path() -> Path:
     else:
         users_records_file_path = create_users_records_file()
         return users_records_file_path
-
+'''
 
 def get_resume_records_file_path(bot_user_id: str, vacancy_id: str) -> Path:
     # TAGS: [get_data],[file_path]
     """Get the path for a resume records file."""
-    resume_data_dir = get_resume_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
+    resume_data_dir = ""
     if resume_data_dir is None:
         raise ValueError(f"Resume directory not found for user {bot_user_id} and vacancy {vacancy_id}. Vacancy directory may not exist or resumes directory may not be created.")
     resume_records_file_path = resume_data_dir / f"{RESUME_RECORDS_FILENAME}.json"
@@ -675,7 +677,7 @@ def get_resume_records_file_path(bot_user_id: str, vacancy_id: str) -> Path:
         logger.debug(f"'{RESUME_RECORDS_FILENAME}' created in {resume_data_dir}")
         return resume_records_file_path
 
-
+'''
 def get_access_token_from_records(bot_user_id: str) -> Optional[str]:
     """Get access token from users records. TAGS: [get_data]"""
     users_records_file_path = get_users_records_file_path()
@@ -798,7 +800,7 @@ def get_resume_recommendation_text_from_resume_records(bot_user_id: str, vacancy
     return recommendation_text
 
 
-'''
+
 def get_path_to_video_from_applicant_from_resume_records(bot_user_id: str, vacancy_id: str, resume_record_id: str) -> Path:
     """Get path to video from applicant from resume records. TAGS: [get_data]"""
     resume_records_file_path = get_resume_records_file_path(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
@@ -810,6 +812,7 @@ def get_path_to_video_from_applicant_from_resume_records(bot_user_id: str, vacan
         raise ValueError(f"'resume_video_path' not found for 'resume_record_id': {resume_record_id}")
     return Path(video_path_value)
 
+'''
 def get_employer_id_from_records(record_id: str) -> Optional[str]:
     """Get employer id from users records. TAGS: [get_data]"""
     users_records_file_path = get_users_records_file_path()
@@ -834,12 +837,13 @@ def get_list_of_users_from_records() -> list[str]:
 
 
 # ****** METHODS with TAGS: [update_data] ******
+'''
 
 def update_user_records_with_top_level_key(record_id: int | str, key: str, value: str | int | bool | dict | list) -> None:
     # TAGS: [update_data]
     """Only updates if the user_id exists in the JSON."""
     try:
-        users_records_path = get_users_records_file_path()
+        users_records_path = ""
         # Read existing data
         with open(users_records_path, "r", encoding="utf-8") as f:
             records = json.load(f)
@@ -856,7 +860,7 @@ def update_user_records_with_top_level_key(record_id: int | str, key: str, value
     except Exception as e:
         raise ValueError(f"Error updating user records with top level key: {e}")
 
-
+'''
 def update_resume_record_with_top_level_key(bot_user_id: str, vacancy_id: str, resume_record_id: str, key: str, value: str | int | bool | dict | list) -> None:
     """Update resume record with new resume data. TAGS: [update_data]"""
     try:

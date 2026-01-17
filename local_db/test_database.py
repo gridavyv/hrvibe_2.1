@@ -20,7 +20,7 @@ from database import (
     SessionLocal,
     Managers,
     Vacancies,
-    Resumes
+    Negotiations
 )
 
 
@@ -54,7 +54,7 @@ def cleanup_test_data(db):
     try:
         # Delete in reverse dependency order to avoid foreign key violations
         # Delete resume first
-        test_resume = db.query(Resumes).filter(Resumes.id == "test_resume_1").first()
+        test_resume = db.query(Negotiations).filter(Negotiations.id == "test_resume_1").first()
         if test_resume:
             db.delete(test_resume)
             db.commit()
@@ -121,7 +121,7 @@ def test_crud_operations():
         
         # Create a test resume
         print("  Creating test resume...")
-        test_resume = Resumes(
+        test_resume = Negotiations(
             id="test_resume_1",
             vacancy_id=1,
             manager_id=123456789,
@@ -137,7 +137,7 @@ def test_crud_operations():
         print("  Reading all records...")
         managers_count = db.query(Managers).count()
         vacancies_count = db.query(Vacancies).count()
-        resumes_count = db.query(Resumes).count()
+        resumes_count = db.query(Negotiations).count()
         print(f"  ✅ Found {managers_count} managers, {vacancies_count} vacancies, {resumes_count} resumes")
         
         # Clean up test data (delete in reverse dependency order)

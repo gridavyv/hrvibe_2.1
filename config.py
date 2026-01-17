@@ -34,4 +34,6 @@ ADMIN_ID = int(get_env_var("ADMIN_ID"))  # Telegram ID админа
 
 # ——— PATHS ———
 PROMPT_DIR = "prompts"
-USERS_DATA_DIR = "/tmp/users_data"  # Render: /tmp — временная папка
+# For local development, use a relative path (./users_data)
+# For production (Render), set USERS_DATA_DIR env var to /tmp/users_data
+USERS_DATA_DIR = os.getenv("USERS_DATA_DIR", "./users_data")  # Default: local directory

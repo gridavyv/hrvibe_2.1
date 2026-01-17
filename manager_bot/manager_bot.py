@@ -32,12 +32,7 @@ from telegram.ext import (
 )
 
 from telegram.error import TelegramError
-"""
-from services.video_service import (
-    process_incoming_video,
-    download_incoming_video_locally
-)
-"""
+
 from shared_services.video_service import (
     process_incoming_video,
     download_incoming_video_locally,
@@ -126,9 +121,11 @@ from shared_services.constants import *
 from shared_services.db_service import (
     is_boolean_field_true_in_db,
     update_record_in_db,
-    create_record_for_new_user_in_db,
+    create_new_record_in_db,
     is_value_in_db,
     get_column_value_in_db,
+    get_column_value_by_field,
+    update_column_value_by_field
 )
 
 from shared_services.data_service import (
@@ -144,32 +141,23 @@ from shared_services.data_service import (
     create_resume_records_file,
     get_resume_records_file_path,
     get_path_to_video_from_applicant_from_resume_records,
-    update_user_records_with_top_level_key,
-    create_user_directory, 
-    create_vacancy_directory,
-    get_vacancy_directory,
-    create_resumes_directory_and_subdirectories,
-    create_record_for_new_resume_id_in_resume_records,
+    update_user_records_with_top_level_key, 
+    #get_vacancy_directory,
+    #create_record_for_new_resume_id_in_resume_records,
     get_resume_recommendation_text_from_resume_records,
-    update_resume_record_with_top_level_key,
-    get_resume_directory,
-    create_record_for_new_user_in_records,
-    get_access_token_from_records,
-    get_target_vacancy_id_from_records,
-    get_target_vacancy_name_from_records,
+    #update_resume_record_with_top_level_key,
+    #get_resume_directory,
+    #get_access_token_from_records,
+    #get_target_vacancy_id_from_records,
+    #get_target_vacancy_name_from_records,
     get_list_of_resume_ids_for_recommendation,
     get_negotiation_id_from_resume_record,
-    get_users_records_file_path,
-    get_employer_id_from_records,
-    get_list_of_users_from_records,
-    create_video_from_managers_directory,
-    create_video_from_applicants_directory,
 )
 
 from database import (
     Managers,
     Vacancies,
-    Resumes,
+    Negotiations,
 )
 
 HH_CLIENT_ID = os.getenv("HH_CLIENT_ID")
@@ -265,14 +253,9 @@ async def setup_new_user_command(update: Update, context: ContextTypes.DEFAULT_T
             raise ValueError(f"setup_new_user_command: bot_user_id is None")
 
         # ----- CHECK IF USER is in records and CREATE record and user directory if needed -----
-        """
-        if not is_user_in_records(record_id=bot_user_id):
-            create_record_for_new_user_in_records(record_id=bot_user_id)
-            create_user_directory(bot_user_id=bot_user_id)
-        """
         
         if not is_value_in_db(db_model=Managers, field_name="id", value=bot_user_id):
-            create_record_for_new_user_in_db(db_model=Managers, record_id=bot_user_id)
+            create_new_record_in_db(db_model=Managers, record_id=bot_user_id)
 
         # ------ ENRICH RECORDS with NEW USER DATA ------
 
@@ -314,23 +297,12 @@ async def ask_privacy_policy_confirmation_command(update: Update, context: Conte
 
         bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
         logger.info(f"ask_privacy_policy_confirmation_command started. user_id: {bot_user_id}")
-        
-        """
-        if not is_user_in_records(record_id=bot_user_id):
-            await send_message_to_user(update, context, text=FAIL_TO_FIND_USER_IN_RECORDS_TEXT)
-            raise ValueError(f"ask_privacy_policy_confirmation_command: user {bot_user_id} not found in records")
-        """
 
         if not is_value_in_db(db_model=Managers, field_name="id", value=bot_user_id):
             await send_message_to_user(update, context, text=FAIL_TO_FIND_USER_IN_RECORDS_TEXT)
             raise ValueError(f"ask_privacy_policy_confirmation_command: user {bot_user_id} not found in database")
 
         # ----- CHECK IF PRIVACY POLICY is already confirmed and STOP if it is -----
-        """
-        if is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):
-            await send_message_to_user(update, context, text=SUCCESS_TO_GET_PRIVACY_POLICY_CONFIRMATION_TEXT)
-            return
-        """
 
         if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
             await send_message_to_user(update, context, text=SUCCESS_TO_GET_PRIVACY_POLICY_CONFIRMATION_TEXT)
@@ -408,16 +380,11 @@ async def handle_answer_policy_confirmation(update: Update, context: ContextType
         privacy_policy_confirmation_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         
         # Update user records with selected vacancy data
-        """
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmed", value=privacy_policy_confirmation_user_value)
-        """
+  
         privacy_policy_confirmation_user_value = True if privacy_policy_confirmation_user_decision == "yes" else False
         update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"privacy_policy_confirmed": privacy_policy_confirmation_user_value})
         
         current_time = datetime.now(timezone.utc).isoformat()
-        """
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="privacy_policy_confirmation_time", value=current_time)
-        """
         update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"privacy_policy_confirmation_time": current_time})
         
         logger.debug(f"Privacy policy confirmation user decision: {privacy_policy_confirmation_user_decision} at {current_time}")
@@ -456,12 +423,10 @@ async def hh_authorization_command(update: Update, context: ContextTypes.DEFAULT
         logger.info(f"hh_authorization_command started. user_id: {bot_user_id}")
         
         # ----- CHECK IF NO Privacy policy consent or AUTHORIZAED already and STOP if it is -----
-        """if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):"""
         if not is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
             await send_message_to_user(update, context, text=MISSING_PRIVACY_POLICY_CONFIRMATION_TEXT)
             return
 
-        """if is_user_authorized(record_id=bot_user_id):"""
         if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="access_token_recieved"):
             await send_message_to_user(update, context, text=SUCCESS_TO_HH_AUTHORIZATION_TEXT)
             return
@@ -502,9 +467,6 @@ async def hh_authorization_command(update: Update, context: ContextTypes.DEFAULT
                     access_token = get_access_token_from_callback_endpoint_resp(endpoint_response=endpoint_response)
                     expires_at = get_expires_at_from_callback_endpoint_resp(endpoint_response=endpoint_response)
                     if access_token is not None and expires_at is not None:
-                        """update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token_recieved", value="yes")
-                        update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token", value=access_token)
-                        update_user_records_with_top_level_key(record_id=bot_user_id, key="access_token_expires_at", value=expires_at)"""
                         update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"access_token_recieved": True})
                         update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"access_token": access_token})
                         update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"access_token_expires_at": expires_at})
@@ -549,13 +511,11 @@ async def pull_user_data_from_hh_command(update: Update, context: ContextTypes.D
 
         bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
         logger.info(f"pull_user_data_from_hh_command started. user_id: {bot_user_id}")
-        """access_token = get_access_token_from_records(bot_user_id=bot_user_id)"""
         access_token = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="access_token")
 
         # ----- CHECK IF USER DATA is already in records and STOP if it is -----
 
         # Check if user is already authorized, if not, pull user data from HH
-        """if is_hh_data_in_user_record(record_id=bot_user_id):"""
         if get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="hh_data") is not None:
             logger.debug(f"'bot_user_id': {bot_user_id} already has HH data in user record.")
             return 
@@ -567,8 +527,8 @@ async def pull_user_data_from_hh_command(update: Update, context: ContextTypes.D
         # Clean user info received from HH.ru API
         cleaned_hh_user_info = clean_user_info_received_from_hh(user_info=hh_user_info)
         # Update user info from HH.ru API in records
-        """update_user_records_with_top_level_key(record_id=bot_user_id, key="data_from_hh", value=cleaned_hh_user_info) # ValueError raised if fails"""
-        update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"hh_data": cleaned_hh_user_info}) # ValueError raised if fails
+        # Exception raised if fails
+        update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"hh_data": cleaned_hh_user_info})
 
         # ----- SELECT VACANCY -----
 
@@ -594,30 +554,32 @@ async def ask_to_record_video_command(update: Update, context: ContextTypes.DEFA
 
     bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
     logger.info(f"ask_to_record_video_command triggered by user_id: {bot_user_id}")
-    """target_vacancy_name = get_target_vacancy_name_from_records(record_id=bot_user_id)"""
-    target_vacancy_name = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_name")
 
     # ----- CHECK MUST CONDITIONS are met and STOP if not -----
 
-    """if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):"""
     if not is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
         logger.debug(f"'bot_user_id': {bot_user_id} doesn't have privacy policy confirmed.")
         await send_message_to_user(update, context, text=MISSING_PRIVACY_POLICY_CONFIRMATION_TEXT)
         return
 
-    """if not is_vacancy_selected(record_id=bot_user_id):"""
-    vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
-    if not is_value_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
+    if not is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_selected"):
         logger.debug(f"'bot_user_id': {bot_user_id} doesn't have target vacancy selected.")
         await send_message_to_user(update, context, text=MISSING_VACANCY_SELECTION_TEXT)
         return
 
+    # Get status of video received from Vacancies table by manager_id
+    is_vacancy_video_received = get_column_value_by_field(
+        db_model=Vacancies,
+        search_field_name="manager_id",
+        search_value=bot_user_id,
+        target_field_name="video_received"
+    )
 
-    """if is_welcome_video_recorded(record_id=bot_user_id):"""
-    if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_video_recorded"):
-        logger.debug(f"'bot_user_id': {bot_user_id} already has welcome video recorded for vacancy '{target_vacancy_name}'.")
-        await send_message_to_user(update, context, text=SUCCESS_TO_RECORD_VIDEO_TEXT + f" Вакансия: '{target_vacancy_name}'.")
+    if is_vacancy_video_received:
+        logger.debug(f"'bot_user_id': {bot_user_id} already has welcome video recorded.")
+        await send_message_to_user(update, context, text=SUCCESS_TO_RECORD_VIDEO_TEXT)
         return
+
 
     # ----- ASK USER IF WANTS TO RECORD or drop welcome video for the selected vacancy -----
 
@@ -709,14 +671,13 @@ async def handle_answer_video_record_request(update: Update, context: ContextTyp
             return
         video_record_request_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         logger.debug(f"Video record request user decision: {video_record_request_user_decision}")
-        # Update user records with selected vacancy data
-        """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_record_agreed", value=video_record_request_user_decision)"""
-        vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
         if video_record_request_user_decision is "yes":
-            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_record_agreed": True})
+            new_value = True
         else:
-            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_record_agreed": False})
-        logger.debug(f"User records updated")
+            new_value = False
+        # Update user records with selected vacancy data
+        update_column_value_by_field(db_model=Vacancies, search_field_name="manager_id", search_value=bot_user_id, target_field_name="video_record_agreed", new_value=new_value)
+        logger.debug(f"Vacancies Database record updated")
     
     # ----- PROGRESS THROUGH THE VIDEO FLOW BASED ON THE USER'S RESPONSE -----
 
@@ -815,12 +776,12 @@ async def handle_answer_confrim_sending_video(update: Update, context: ContextTy
             return
         sending_video_confirmation_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         # Update user records with selected vacancy data
-        """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_sending_confirmed", value=sending_video_confirmation_user_decision)"""
-        vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
         if sending_video_confirmation_user_decision is "yes":
-            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_sending_confirmed": True})
+            new_value = True
         else:
-            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_sending_confirmed": False})
+            new_value = False
+        update_column_value_by_field(db_model=Vacancies, search_field_name="manager_id", search_value=bot_user_id, target_field_name="video_sending_confirmed", new_value=new_value)
+        logger.debug(f"Vacancies Database record updated")
 
     # ----- IF USER CHOSE "YES" start video download  -----
 
@@ -865,31 +826,26 @@ async def select_vacancy_command(update: Update, context: ContextTypes.DEFAULT_T
     Called from: 'pull_user_data_from_hh_command'.
     Triggers: nothing.
     Sends notification to admin if fails"""
-    
+
     try:
         # ----- IDENTIFY USER and pull required data from records -----
 
         bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
         logger.info(f"select_vacancy_command started. user_id: {bot_user_id}")
-        """access_token = get_access_token_from_records(bot_user_id=bot_user_id)"""
         access_token = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="access_token")
 
         # ----- CHECK IF Privacy confirmed and VACANCY is selected and STOP if it is -----
 
-        """if not is_manager_privacy_policy_confirmed(bot_user_id=bot_user_id):"""
         if not is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="privacy_policy_confirmed"):
             await send_message_to_user(update, context, text=MISSING_PRIVACY_POLICY_CONFIRMATION_TEXT)
             return
 
-        """if is_vacancy_selected(record_id=bot_user_id):"""
-        vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
-        if is_boolean_field_true_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
+        if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_selected"):
             await send_message_to_user(update, context, text=SUCCESS_TO_SELECT_VACANCY_TEXT)
-            raise ValueError(f"Validation failed: vacancy not selected")
+            return
 
         # ----- PULL ALL OPEN VACANCIES from HH and enrich records with it -----
 
-        """employer_id = get_employer_id_from_records(record_id=bot_user_id)"""
         employer_id = get_employer_id_from_json_value_from_db(db_model=Managers, record_id=bot_user_id)
         if not employer_id:
             await send_message_to_user(update, context, text=FAILED_TO_GET_OPEN_VACANCIES_TEXT)
@@ -936,7 +892,6 @@ async def select_vacancy_command(update: Update, context: ContextTypes.DEFAULT_T
                 text=f"⚠️ Error select_vacancy_command: {e}\nUser ID: {bot_user_id if 'bot_user_id' in locals() else 'unknown'}"
             )
 
-
 async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # TAGS: [vacancy_related]
     """Handle button click.
@@ -964,19 +919,16 @@ async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEF
         # Get the callback_data from the button click
         callback_data = await handle_answer(update, context)
 
-        # ------- CREATE VACANCY DIRECTORY  for selected vacancy and NESTED RESUMES DIRECTORIES  -------
+        # ------- CREATE VACANCY RECORD for selected vacancy  -------
 
         target_vacancy_id = str(callback_data)
         logger.debug(f"Target vacancy id: {target_vacancy_id}")
-        """if target_vacancy_id:
-
-            create_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
-            create_video_from_managers_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
-            create_video_from_applicants_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
-            create_resumes_directory_and_subdirectories(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id, resume_subdirectories=RESUME_SUBDIRECTORIES_LIST)
-            create_resume_records_file(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
+        if target_vacancy_id:
+            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_selected": True})
+            create_new_record_in_db(db_model=Vacancies, record_id=target_vacancy_id)
+            update_record_in_db(db_model=Vacancies, record_id=target_vacancy_id, updates={"manager_id": bot_user_id})
         else:
-            raise ValueError(f"No target_vacancy_id {target_vacancy_id} found in callback_data")"""
+            raise ValueError(f"No target_vacancy_id {target_vacancy_id} found in callback_data")
         
         # ----- PULL OPTIONS from context (stored when question asked) -----
 
@@ -1002,14 +954,8 @@ async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEF
         # Now you can use callback_data or selected_option for your logic
         if update.callback_query and update.callback_query.message:
             vacancy_name_value = selected_option[0]
-            vacancy_id_value = selected_option[1]
             # Update user records with selected vacancy data
-            """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_selected", value="yes") # ValueError raised if fails
-            update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_name", value=vacancy_name_value) # ValueError raised if fails
-            update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_id", value=vacancy_id_value) # ValueError raised if fails"""
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_selected": True}) # ValueError raised if fails
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_name": vacancy_name_value}) # ValueError raised if fails
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_id": vacancy_id_value}) # ValueError raised if fails
+            update_record_in_db(db_model=Vacancies, record_id=target_vacancy_id, updates={"name": vacancy_name_value}) # ValueError raised if fails
             
             # Inform user that selected vacancy is being processed
             if selected_option:
@@ -1043,6 +989,10 @@ async def read_vacancy_description_command(update: Update, context: ContextTypes
     
     bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
     logger.info(f"read_vacancy_description_command started. user_id: {bot_user_id}")
+
+    await send_message_to_user(update, context, text="!!! Поздравляю !!! ты дошел до этапа получения описания вакансии.")
+
+    '''
     """access_token = get_access_token_from_records(bot_user_id=bot_user_id)
     target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
     target_vacancy_name = get_target_vacancy_name_from_records(record_id=bot_user_id)"""
@@ -1090,7 +1040,7 @@ async def read_vacancy_description_command(update: Update, context: ContextTypes
                 application=context.application,
                 text=f"⚠️ Error read_vacancy_description_command: {e}\nUser ID: {bot_user_id if 'bot_user_id' in locals() else 'unknown'}"
             )
-
+'''
 
 ########################################################################################
 # ------------ COMMANDS EXECUTED on ADMIN request ------------
@@ -1321,7 +1271,7 @@ async def source_resumes_triggered_by_admin_command(bot_user_id: str) -> None:
             negotiation_id = negotiations_collection_item["id"]
             resume_id = negotiations_collection_item["resume"]["id"]
             """if not is_resume_id_exists_in_resume_records(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id, resume_record_id=resume_id):"""
-            if not is_value_in_db(db_model=Resumes, field_name="id", value=resume_id):
+            if not is_value_in_db(db_model=Negotiations, field_name="id", value=resume_id):
                 fresh_resume_id_and_negotiation_id_dict[resume_id] = negotiation_id
         
         logger.debug(f"source_resumes_triggered_by_admin_command: fresh resume ID and negotiation ID dictionary: {fresh_resume_id_and_negotiation_id_dict}")

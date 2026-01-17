@@ -25,7 +25,7 @@ def _track_message_with_keyboard(update: Update, context: ContextTypes.DEFAULT_T
     # Track in persistent storage
     bot_user_id = update.effective_user.id if update.effective_user else None
     if bot_user_id:
-        add_persistent_keyboard_message(
+        add_persistent_keyboard_message_in_db(
             bot_user_id=str(bot_user_id),
             chat_id=chat_id,
             message_id=message_id

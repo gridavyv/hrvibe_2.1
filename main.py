@@ -17,9 +17,11 @@ from dotenv import load_dotenv
 # Load environment variables first, before setting up logging
 load_dotenv()
 
-USERS_DATA_DIR = os.getenv("USERS_DATA_DIR", "/tmp/users_data")
+USERS_DATA_DIR = os.getenv("USERS_DATA_DIR", "./users_data")
 logs_dir = Path(USERS_DATA_DIR) / "logs" / "orchestrator_logs"
 logs_dir.mkdir(parents=True, exist_ok=True)
+print(f"Logs directory: {logs_dir}")
+print(f"Users data directory: {USERS_DATA_DIR}")
 
 log_filename = logs_dir / f"orchestrator_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 
@@ -121,7 +123,7 @@ def main():
     bot_cwd = os.path.join(project_root, active_bot)
     
     # Проверка USERS_DATA_DIR
-    users_data_dir = Path(os.getenv("USERS_DATA_DIR", "/tmp/users_data"))
+    users_data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
     try:
         users_data_dir.mkdir(parents=True, exist_ok=True)
         logger.info("USERS_DATA_DIR = %s (created/verified)", users_data_dir)

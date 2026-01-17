@@ -71,7 +71,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python3 local_db/delete_manager.py <manager_id> [--confirm]")
         print("\nOptions:")
-        print("  <manager_id>    The ID of the manager to delete (must be a number)")
+        print("  <manager_id>    The ID of the manager to delete (string)")
         print("  --confirm       Skip confirmation prompt")
         print("\nExample:")
         print("  python3 local_db/delete_manager.py 123456789")
@@ -79,14 +79,15 @@ def main():
         sys.exit(1)
     
     try:
-        manager_id = int(sys.argv[1])
+        # Convert to string since Managers.id is String type in database
+        manager_id = str(sys.argv[1])
         confirm = '--confirm' in sys.argv
         
         success = delete_manager_by_id(manager_id, confirm=confirm)
         sys.exit(0 if success else 1)
         
     except ValueError:
-        print(f"❌ Error: '{sys.argv[1]}' is not a valid ID (must be a number)")
+        print(f"❌ Error: '{sys.argv[1]}' is not a valid ID")
         sys.exit(1)
     except KeyboardInterrupt:
         print("\n❌ Deletion cancelled by user")

@@ -1,11 +1,12 @@
 # TAGS: [admin]
 # Shared admin commands for manager_bot, applicant_bot, and consultant_bot
 
+import json
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
 # Add project root to path to access shared_services and manager_bot services
 project_root = Path(__file__).parent.parent
@@ -24,9 +25,11 @@ from shared_services.constants import (
 from shared_services.db_service import (
     is_value_in_db,
     is_boolean_field_true_in_db,
+    update_record_in_db,
+    get_column_value_in_db,
 )
 
-from database import Managers
+from database import Managers, Vacancies, Negotiations, Base
 
 """
 # Import from manager_bot services (these will need to be available)
@@ -41,13 +44,15 @@ from manager_bot.services.status_validation_service import (
 
 from shared_services.data_service import (
     is_vacany_data_enough_for_resume_analysis,
+    get_tg_user_data_attribute_from_update_object,
 )
-
+'''
 from manager_bot.services.data_service import (
     get_list_of_users_from_records,
     get_target_vacancy_id_from_records,
     get_tg_user_data_attribute_from_update_object,
 )
+'''
 """from manager_bot.services.questionnaire_service import send_message_to_user"""
 from shared_services.questionnaire_service import send_message_to_user
 
@@ -579,7 +584,7 @@ async def admin_pull_file_command(update: Update, context: ContextTypes.DEFAULT_
 
         # ----- CONSTRUCT LOG FILE PATH -----
 
-        data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
+        data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
         file_path = data_dir / file_relative_path
         file_name = file_path.name
 
@@ -799,7 +804,7 @@ async def admin_push_file_document_handler(update: Update, context: ContextTypes
         # ----- CONFIRM SUCCESS TO ADMIN -----
 
         await update.message.reply_text(
-            f"✅ File successfully uploaded!\nPath: `{file_path.relative_to(Path(os.getenv('USERS_DATA_DIR', '/users_data')))}`",
+            f"✅ File successfully uploaded!\nPath: `{file_path.relative_to(Path(os.getenv('USERS_DATA_DIR', './users_data')))}`",
             parse_mode=ParseMode.MARKDOWN
         )
         logger.info(f"admin_push_file_document_handler: Success confirmation sent to user {bot_user_id}")
@@ -824,4 +829,186 @@ async def admin_push_file_document_handler(update: Update, context: ContextTypes
             await send_message_to_admin(
                 application=context.application,
                 text=f"⚠️ Error admin_push_file_document_handler: {e}\nAdmin ID: {bot_user_id}"
+            )
+
+
+def _get_table_model(table_name: str):
+    """Map table name to SQLAlchemy model class."""
+    table_map = {
+        "managers": Managers,
+        "vacancies": Vacancies,
+        "negotiations": Negotiations,
+    }
+    return table_map.get(table_name.lower())
+
+
+def _convert_value_to_type(value_str: str, column_type) -> Any:
+    """Convert string value to appropriate type based on column type."""
+    from sqlalchemy import Boolean, BigInteger, Integer
+    from sqlalchemy.dialects.postgresql import JSONB
+    
+    if isinstance(column_type, Boolean):
+        # Handle boolean values
+        if value_str.lower() in ('true', '1', 'yes', 'y', 'on'):
+            return True
+        elif value_str.lower() in ('false', '0', 'no', 'n', 'off'):
+            return False
+        else:
+            raise ValueError(f"Cannot convert '{value_str}' to boolean. Use 'true'/'false', '1'/'0', 'yes'/'no'")
+    
+    elif isinstance(column_type, (BigInteger, Integer)):
+        # Handle integer values
+        try:
+            return int(value_str)
+        except ValueError:
+            raise ValueError(f"Cannot convert '{value_str}' to integer")
+    
+    elif isinstance(column_type, JSONB):
+        # Handle JSON values
+        try:
+            return json.loads(value_str)
+        except json.JSONDecodeError:
+            raise ValueError(f"Cannot parse '{value_str}' as JSON. Use valid JSON format")
+    
+    else:
+        # Default to string
+        return value_str
+
+
+async def admin_update_db_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    #TAGS: [admin]
+    """
+    Admin command to update a database record.
+    Usage: /admin_update_db <table_name> <record_id> <column_name> <new_value>
+    
+    Examples:
+    /admin_update_db managers 7853115214 access_token "new_token_value"
+    /admin_update_db managers 7853115214 privacy_policy_confirmed true
+    /admin_update_db managers 7853115214 access_token_expires_at 1234567890
+    /admin_update_db vacancies vacancy_123 name "New Vacancy Name"
+    """
+    
+    try:
+        # ----- IDENTIFY USER and pull required data from records -----
+        
+        bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
+        logger.info(f"admin_update_db_command: started. User_id: {bot_user_id}")
+        
+        #  ----- CHECK IF USER IS NOT AN ADMIN and STOP if it is -----
+        
+        admin_id = os.getenv("ADMIN_ID", "")
+        if not admin_id or bot_user_id != admin_id:
+            await send_message_to_user(update, context, text=FAIL_TO_IDENTIFY_USER_AS_ADMIN_TEXT)
+            logger.error(f"Unauthorized for {bot_user_id}")
+            return
+        
+        # ----- PARSE COMMAND ARGUMENTS -----
+        
+        if not context.args or len(context.args) < 4:
+            await send_message_to_user(
+                update, 
+                context, 
+                text="⚠️ Неверный формат команды.\n"
+                     "Использование: /admin_update_db <table_name> <record_id> <column_name> <new_value>\n\n"
+                     "Примеры:\n"
+                     "/admin_update_db managers 7853115214 access_token \"new_token\"\n"
+                     "/admin_update_db managers 7853115214 privacy_policy_confirmed true\n"
+                     "/admin_update_db managers 7853115214 access_token_expires_at 1234567890"
+            )
+            return
+        
+        table_name = context.args[0].lower()
+        record_id = context.args[1]
+        column_name = context.args[2]
+        new_value_str = " ".join(context.args[3:])  # Join remaining args in case value has spaces
+        
+        # ----- VALIDATE TABLE NAME -----
+        
+        db_model = _get_table_model(table_name)
+        if not db_model:
+            await send_message_to_user(
+                update, 
+                context, 
+                text=f"❌ Неверное имя таблицы: {table_name}\n"
+                     f"Доступные таблицы: managers, vacancies, negotiations"
+            )
+            return
+        
+        # ----- VALIDATE COLUMN EXISTS -----
+        
+        column = db_model.__table__.columns.get(column_name)
+        if column is None:
+            await send_message_to_user(
+                update, 
+                context, 
+                text=f"❌ Колонка '{column_name}' не найдена в таблице '{table_name}'"
+            )
+            return
+        
+        # ----- CHECK IF RECORD EXISTS -----
+        
+        if not is_value_in_db(db_model=db_model, field_name="id", value=record_id):
+            await send_message_to_user(
+                update, 
+                context, 
+                text=f"❌ Запись с ID '{record_id}' не найдена в таблице '{table_name}'"
+            )
+            return
+        
+        # ----- GET CURRENT VALUE -----
+        
+        current_value = get_column_value_in_db(db_model=db_model, record_id=record_id, field_name=column_name)
+        
+        # ----- CONVERT VALUE TO APPROPRIATE TYPE -----
+        
+        try:
+            new_value = _convert_value_to_type(new_value_str, column.type)
+        except ValueError as e:
+            await send_message_to_user(
+                update, 
+                context, 
+                text=f"❌ Ошибка преобразования значения: {e}"
+            )
+            return
+        
+        # ----- UPDATE RECORD -----
+        
+        try:
+            update_record_in_db(
+                db_model=db_model,
+                record_id=record_id,
+                updates={column_name: new_value}
+            )
+            
+            # Get updated value to confirm
+            updated_value = get_column_value_in_db(db_model=db_model, record_id=record_id, field_name=column_name)
+            
+            await send_message_to_user(
+                update, 
+                context, 
+                text=f"✅ Запись обновлена успешно!\n\n"
+                     f"Таблица: {table_name}\n"
+                     f"ID записи: {record_id}\n"
+                     f"Колонка: {column_name}\n"
+                     f"Старое значение: {current_value}\n"
+                     f"Новое значение: {updated_value}"
+            )
+            logger.info(f"admin_update_db_command: Successfully updated {table_name}.{column_name} for record {record_id}")
+            
+        except Exception as e:
+            logger.error(f"admin_update_db_command: Failed to update record: {e}", exc_info=True)
+            await send_message_to_user(
+                update, 
+                context, 
+                text=f"❌ Ошибка при обновлении записи: {e}"
+            )
+            raise
+    
+    except Exception as e:
+        logger.error(f"admin_update_db_command: Failed to execute command: {e}", exc_info=True)
+        # Send notification to admin about the error
+        if context.application:
+            await send_message_to_admin(
+                application=context.application,
+                text=f"⚠️ Error admin_update_db_command: {e}\nAdmin ID: {bot_user_id if 'bot_user_id' in locals() else 'unknown'}"
             )

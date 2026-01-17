@@ -27,7 +27,7 @@ from shared_services.constants import APPLICANT_BOT_DATA_DIR, APPLICANT_BOT_RECO
 def get_applicant_bot_data_directory() -> Path:
     # TAGS: [get_data],[directory_path],[applicant_bot_usage]
     """Get the directory path for user data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
+    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
     applicant_bot_data_dir = data_dir / APPLICANT_BOT_DATA_DIR
     #return id if data_dir exists
     if applicant_bot_data_dir.exists():
@@ -90,7 +90,7 @@ def get_resume_id_from_applicant_bot_records(applicant_record_id: str) -> Option
 def get_vacancy_directory(user_record_id: str, vacancy_id: str) -> Optional[Path]:
     # TAGS: [get_data],[directory_path],[applicant_bot_usage]
     """Get the directory path for vacancy data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
+    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
     if data_dir.exists():
         user_data_dir = data_dir / f"bot_user_id_{user_record_id}"
         if user_data_dir.exists():
@@ -155,7 +155,7 @@ def get_tg_user_data_attribute_from_update_object(update: Update, tg_user_attrib
 def create_applicant_bot_data_directory() -> Path:
     # TAGS: [create_data],[directory_path],[applicant_bot_usage]
     """Create a directory for all data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "/users_data"))
+    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
     applicant_bot_data_dir = data_dir / APPLICANT_BOT_DATA_DIR
     applicant_bot_data_dir.mkdir(parents=True, exist_ok=True)
     logger.debug(f"{applicant_bot_data_dir} created or exists.")

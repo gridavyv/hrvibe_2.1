@@ -11,9 +11,11 @@ from telegram.ext import ContextTypes
 
 from shared_services.db_service import (
     get_column_value_in_db,
-    update_record_in_db
+    update_record_in_db,
+    get_column_value_by_field,
+    update_column_value_by_field
 )
-from database import Managers
+from database import Managers, Vacancies
 
 # Add project root to path to access shared_services
 project_root = Path(__file__).parent.parent.parent
@@ -132,11 +134,12 @@ async def download_incoming_video_locally(update: Update, context: ContextTypes.
     try:
         query = update.callback_query
         bot_user_id = user_id
-        """target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
-        video_dir_path = get_directory_for_video_from_managers(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)"""
+
         video_dir_path = get_data_subdirectory_path(subdirectory_name="videos")
-        vacancy_id = get_column_value_in_db(db_model=Manager, record_id=bot_user_id, field_name="vacancy_id")
         logger.info(f"download_incoming_video_locally: target video_dir_path={video_dir_path}")
+
+        vacancy_id = get_column_value_by_field(db_model=Vacancies, search_field_name="manager_id", search_value=bot_user_id, target_field_name="id")
+        
 
         if video_dir_path is None:
             logger.error(f"download_incoming_video_locally: Target video_dir_path to save video not found.")
@@ -145,9 +148,9 @@ async def download_incoming_video_locally(update: Update, context: ContextTypes.
         # Generate unique filename with appropriate extension
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
         if file_type == "video_note":
-            filename = f"manager_{bot_user_id}_vacancy_{vacancy_id}_time_{timestamp}_note.mp4"
+            filename = f"manager_id_{bot_user_id}_vacancy_id_{vacancy_id}_time_{timestamp}_note.mp4"
         else:
-            filename = f"manager_{bot_user_id}_vacancy_{vacancy_id}_time_{timestamp}.mp4"
+            filename = f"manager_id_{bot_user_id}_vacancy_id_{vacancy_id}_time_{timestamp}.mp4"
 
         video_file_path = video_dir_path / filename
         logger.info(f"download_incoming_video_locally: Target video file path to save video for managers: {video_file_path}")
@@ -165,10 +168,8 @@ async def download_incoming_video_locally(update: Update, context: ContextTypes.
         logger.info(f"download_incoming_video_locally: Target video file from manager downloaded to: {video_file_path}")
 
         # Update user records with video received and video path
-        """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_received", value="yes")
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_path", value=str(video_file_path))"""
-        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_received": True})
-        update_record_in_db(db_model=Manager, record_id=bot_user_id, updates={"vacancy_video_path": str(video_file_path)})
+        update_column_value_by_field(db_model=Vacancies, search_field_name="manager_id", search_value=bot_user_id, target_field_name="video_received", new_value=True)
+        update_column_value_by_field(db_model=Vacancies, search_field_name="manager_id", search_value=bot_user_id, target_field_name="video_path", new_value=str(video_file_path))
 
         logger.info(f"download_incoming_video_locally: User records updated with video received and video path")
 
