@@ -26,8 +26,13 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-
+"""
 from services.video_service import (
+    process_incoming_video,
+    download_incoming_video_locally
+)
+"""
+from shared_services.video_service import (
     process_incoming_video,
     download_incoming_video_locally
 )
@@ -47,16 +52,26 @@ from services.data_service import (
     create_new_applicant_in_applicant_bot_records,
     update_applicant_bot_records_with_top_level_key,
     get_applicant_bot_records_file_path,
-    get_tg_user_data_attribute_from_update_object,
-    get_decision_status_from_selected_callback_code,
 )
+
+from shared_services.data_service import (
+    get_decision_status_from_selected_callback_code,
+    get_tg_user_data_attribute_from_update_object
+)
+"""
 from services.questionnaire_service import (
     ask_question_with_options, 
     handle_answer,
     send_message_to_user,
     clear_all_unprocessed_keyboards
 )
-
+"""
+from shared_services.questionnaire_service import (
+    ask_question_with_options, 
+    handle_answer,
+    send_message_to_user,
+    clear_all_unprocessed_keyboards
+)
 
 from shared_services.constants import *
 

@@ -34,7 +34,9 @@ from manager_bot.services.data_service import (
     get_target_vacancy_id_from_records,
     get_tg_user_data_attribute_from_update_object,
 )
-from manager_bot.services.questionnaire_service import send_message_to_user
+"""from manager_bot.services.questionnaire_service import send_message_to_user"""
+from shared_services.questionnaire_service import send_message_to_user
+
 from manager_bot.manager_bot import send_message_to_admin
 
 logger = logging.getLogger(__name__)

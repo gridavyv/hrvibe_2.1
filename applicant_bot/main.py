@@ -25,7 +25,8 @@ from shared_services.constants import (
     BTN_FEEDBACK,
     WELCOME_TEXT_WHEN_STARTING_BOT_APPLICANT as WELCOME_TEXT_WHEN_STARTING_BOT,
 )
-from services.logging_service import setup_logging
+"""from services.logging_service import setup_logging"""
+from shared_services.auth_service import setup_logging
 
 # required for manager menu
 from telegram.ext import CommandHandler, MessageHandler, filters, ContextTypes

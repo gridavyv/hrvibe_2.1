@@ -29,15 +29,20 @@ from shared_services.admin import (
     admin_push_file_document_handler,
 )
 
-from services.data_service import (
-    create_data_directories,
-)
+
 from shared_services.constants import (
     BTN_MENU,
     BTN_FEEDBACK,
     WELCOME_TEXT_WHEN_STARTING_BOT,
 )
-from services.logging_service import setup_logging
+
+from shared_services.data_service import (
+    create_data_directories,
+)
+
+"""from services.logging_service import setup_logging"""
+from shared_services.auth_service import setup_logging
+
 
 # required for manager menu
 from telegram.ext import CommandHandler, MessageHandler, filters, ContextTypes

@@ -8,7 +8,7 @@ import json
 import logging
 from typing import Callable, Awaitable, Optional, Dict, Any
 from telegram.ext import Application
-
+"""
 from services.data_service import get_users_records_file_path
 from services.status_validation_service import (
     is_vacancy_selected,
@@ -17,7 +17,7 @@ from services.status_validation_service import (
     is_user_authorized,
     is_vacany_data_enough_for_resume_analysis,
 )
-
+"""
 logger = logging.getLogger(__name__)
 
 

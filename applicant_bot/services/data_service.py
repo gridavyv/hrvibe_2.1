@@ -148,20 +148,6 @@ def get_tg_user_data_attribute_from_update_object(update: Update, tg_user_attrib
         return None
 
 
-def get_decision_status_from_selected_callback_code(selected_callback_code: str) -> str:
-    #TAGS: [get_data],[applicant_bot_usage]
-    """Extract the meaningful part of a callback code.
-    Args:
-        selected_callback_code (str): Selected callback code, e.g. 'action_code:value'
-    Returns:
-        str: The part after the last colon, or the original string if no colon is present.
-    """
-    if ":" in selected_callback_code:
-        return selected_callback_code.split(":")[-1].strip()
-    else:
-        return selected_callback_code
-
-
 
 # ****** METHODS with TAGS: [create_data] ******
 

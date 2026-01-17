@@ -18,9 +18,9 @@ sys.path.insert(0, project_root)
 from database import (
     init_db,
     SessionLocal,
-    Manager,
-    Vacancy,
-    Resume
+    Managers,
+    Vacancies,
+    Applicants
 )
 
 
@@ -54,19 +54,19 @@ def cleanup_test_data(db):
     try:
         # Delete in reverse dependency order to avoid foreign key violations
         # Delete resume first
-        test_resume = db.query(Resume).filter(Resume.id == "test_resume_1").first()
+        test_resume = db.query(Applicants).filter(Applicants.id == "test_resume_1").first()
         if test_resume:
             db.delete(test_resume)
             db.commit()
         
         # Delete vacancy
-        test_vacancy = db.query(Vacancy).filter(Vacancy.id == 1).first()
+        test_vacancy = db.query(Vacancies).filter(Vacancies.id == 1).first()
         if test_vacancy:
             db.delete(test_vacancy)
             db.commit()
         
         # Delete manager
-        test_manager = db.query(Manager).filter(Manager.id == 123456789).first()
+        test_manager = db.query(Managers).filter(Managers.id == 123456789).first()
         if test_manager:
             db.delete(test_manager)
             db.commit()
@@ -87,7 +87,7 @@ def test_crud_operations():
         
         # Create a test manager
         print("  Creating test manager...")
-        test_manager = Manager(
+        test_manager = Managers(
             id=123456789,
             username="test_user",
             first_name="Test",
@@ -100,7 +100,7 @@ def test_crud_operations():
         
         # Read the manager
         print("  Reading manager...")
-        manager = db.query(Manager).filter(Manager.id == 123456789).first()
+        manager = db.query(Managers).filter(Managers.id == 123456789).first()
         if manager:
             print(f"  ✅ Manager found: {manager.username}")
         else:
@@ -121,7 +121,7 @@ def test_crud_operations():
         
         # Create a test resume
         print("  Creating test resume...")
-        test_resume = Resume(
+        test_resume = Applicants(
             id="test_resume_1",
             vacancy_id=1,
             manager_id=123456789,
@@ -135,9 +135,9 @@ def test_crud_operations():
         
         # Read all records
         print("  Reading all records...")
-        managers_count = db.query(Manager).count()
-        vacancies_count = db.query(Vacancy).count()
-        resumes_count = db.query(Resume).count()
+        managers_count = db.query(Managers).count()
+        vacancies_count = db.query(Vacancies).count()
+        resumes_count = db.query(Applicants).count()
         print(f"  ✅ Found {managers_count} managers, {vacancies_count} vacancies, {resumes_count} resumes")
         
         # Clean up test data (delete in reverse dependency order)

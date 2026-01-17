@@ -35,7 +35,8 @@ from shared_services.constants import (
 
 logger = logging.getLogger(__name__)
 
-from services.questionnaire_service import send_message_to_user
+"""from services.questionnaire_service import send_message_to_user"""
+from shared_services.questionnaire_service import send_message_to_user
 
 
 def _validate_incoming_video(file_size: int, duration: int, max_duration: int = MAX_DURATION_SECS) -> str:

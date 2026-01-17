@@ -216,11 +216,6 @@ def clear_all_persistent_keyboard_messages_from_db(bot_user_id: str) -> None:
 
 # ****** METHODS with TAGS: [format_data] ******
 
-def format_oauth_link_text(oauth_link: str) -> str:
-    # TAGS: [format_data]
-    """Format oauth link text. TAGS: [format_data]"""
-    return f"<a href=\"{oauth_link}\">Ссылка для авторизации</a>"
-
 '''
 def create_user_directory(bot_user_id: str) -> Path:
     # TAGS: [create_data],[directory_path]

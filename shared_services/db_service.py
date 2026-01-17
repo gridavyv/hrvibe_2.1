@@ -18,7 +18,7 @@ from telegram import Update
 from sqlalchemy import select, Boolean, String
 
 from config import *
-from database import SessionLocal, Manager, Vacancy, Resume, Base
+from database import SessionLocal, Managers, Vacancies, Applicants, Base
 from shared_services.constants import (
     BOT_FOR_APPLICANTS_USERNAME,
     AUTH_REQ_TEXT,
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 def create_record_for_new_user_in_db(db_model: Type[Base], record_id: str) -> None:
     """ Args:
         record_id: The ID to create (as string)
-        db_model: The database model class (Manager, Resume, Vacancy, etc.)
+        db_model: The database model class (Managers, Vacancies, Applicants, etc.)
     """
     id_column = db_model.__table__.columns.get("id")
     if id_column is None:

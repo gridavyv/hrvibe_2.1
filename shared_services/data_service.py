@@ -179,3 +179,10 @@ def get_reply_from_update_object(update: Update):
         return update.callback_query.message.reply_text
     else:
         return None
+
+# ****** METHODS with TAGS: [format_data] ******
+
+def format_oauth_link_text(oauth_link: str) -> str:
+    # TAGS: [format_data]
+    """Format oauth link text. TAGS: [format_data]"""
+    return f"<a href=\"{oauth_link}\">Ссылка для авторизации</a>"

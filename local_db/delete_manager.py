@@ -15,7 +15,7 @@ load_dotenv()
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from database import SessionLocal, Manager
+from database import SessionLocal, Managers
 
 def delete_manager_by_id(manager_id, confirm=False):
     """Delete manager by ID"""
@@ -23,7 +23,7 @@ def delete_manager_by_id(manager_id, confirm=False):
     
     try:
         # First, check if manager exists
-        manager = db.query(Manager).filter(Manager.id == manager_id).first()
+        manager = db.query(Managers).filter(Managers.id == manager_id).first()
         
         if not manager:
             print(f"❌ Manager with ID {manager_id} not found")

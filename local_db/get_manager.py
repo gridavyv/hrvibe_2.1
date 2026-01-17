@@ -15,7 +15,7 @@ load_dotenv()
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from database import SessionLocal, Manager
+from database import SessionLocal, Managers
 from sqlalchemy.inspection import inspect
 
 def get_manager_by_id(manager_id):
@@ -23,14 +23,14 @@ def get_manager_by_id(manager_id):
     db = SessionLocal()
     
     try:
-        manager = db.query(Manager).filter(Manager.id == manager_id).first()
+        manager = db.query(Managers).filter(Managers.id == manager_id).first()
         
         if manager:
             print("=" * 60)
             print(f"✅ Found Manager (ID: {manager_id})")
             print("=" * 60)
 
-            mapper = inspect(Manager)
+            mapper = inspect(Managers)
             for column in mapper.columns:
                 value = getattr(manager, column.key)
                 print(f"{column.key:28} {value}")

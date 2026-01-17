@@ -26,7 +26,8 @@ from services.data_service import (
     get_directory_for_video_from_managers,
     update_user_records_with_top_level_key,
     )
-from services.questionnaire_service import send_message_to_user
+"""from services.questionnaire_service import send_message_to_user"""
+from shared_services.questionnaire_service import send_message_to_user
 
 from shared_services.constants import (
     MAX_DURATION_SECS,

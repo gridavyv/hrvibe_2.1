@@ -24,7 +24,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-class Manager(Base):
+class Managers(Base):
     __tablename__ = "managers"
 
     id = Column(String, primary_key=True)
@@ -47,12 +47,13 @@ class Manager(Base):
     vacancy_video_path = Column(String)
     vacancy_description_recieved = Column(Boolean, default=False, nullable=False)
     vacancy_sourcing_criterias_recieved = Column(Boolean, default=False, nullable=False)
+    negotiations_collection_recieved = Column(Boolean, default=False, nullable=False)
     messages_with_keyboards = Column(JSON, default=list)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 
 
-class Vacancy(Base):
+class Vacancies(Base):
     __tablename__ = "vacancies"
 
     id = Column(String, primary_key=True)
@@ -66,8 +67,8 @@ class Vacancy(Base):
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 
 
-class Resume(Base):
-    __tablename__ = "resumes"
+class Applicants(Base):
+    __tablename__ = "applicants"
 
     id = Column(String, primary_key=True)
     vacancy_id = Column(String, ForeignKey("vacancies.id"), nullable=False)
