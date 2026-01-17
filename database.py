@@ -3,6 +3,7 @@
 Shared database models and configuration for all bots.
 """
 from sqlalchemy import create_engine, Column, Integer, String, Boolean, JSON, BigInteger, TIMESTAMP, ForeignKey, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql import func
@@ -37,18 +38,9 @@ class Managers(Base):
     access_token_recieved = Column(Boolean, default=False, nullable=False)
     access_token = Column(String)
     access_token_expires_at = Column(BigInteger)
-    hh_data = Column(JSON)
+    hh_data = Column(JSONB)
     vacancy_selected = Column(Boolean, default=False, nullable=False)
-    vacancy_id = Column(String)
-    vacancy_name = Column(String)
-    vacancy_video_record_agreed = Column(Boolean, default=False, nullable=False)
-    vacancy_video_sending_confirmed = Column(Boolean, default=False, nullable=False)
-    vacancy_video_received = Column(Boolean, default=False, nullable=False)
-    vacancy_video_path = Column(String)
-    vacancy_description_recieved = Column(Boolean, default=False, nullable=False)
-    vacancy_sourcing_criterias_recieved = Column(Boolean, default=False, nullable=False)
-    negotiations_collection_recieved = Column(Boolean, default=False, nullable=False)
-    messages_with_keyboards = Column(JSON, default=list)
+    messages_with_keyboards = Column(JSONB, default=list)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 
@@ -59,29 +51,35 @@ class Vacancies(Base):
     id = Column(String, primary_key=True)
     manager_id = Column(String, ForeignKey("managers.id"), nullable=False)
     name = Column(String)
-    vacancy_description_recieved = Column(Boolean, default=False, nullable=False)
+    video_record_agreed = Column(Boolean, default=False, nullable=False)
+    video_sending_confirmed = Column(Boolean, default=False, nullable=False)
+    video_received = Column(Boolean, default=False, nullable=False)
+    video_path = Column(String)
+    description_recieved = Column(Boolean, default=False, nullable=False)
+    description_json = Column(JSONB)
     sourcing_criterias_recieved = Column(Boolean, default=False, nullable=False)
-    description_json = Column(JSON)
-    sourcing_criterias_json = Column(JSON)
+    sourcing_criterias_json = Column(JSONB)
+    negotiations_collection_recieved = Column(Boolean, default=False, nullable=False)
+    negotiations_collection_json = Column(JSONB)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
 
 
-class Applicants(Base):
-    __tablename__ = "applicants"
+class Resumes(Base):
+    __tablename__ = "resumes"
 
     id = Column(String, primary_key=True)
     vacancy_id = Column(String, ForeignKey("vacancies.id"), nullable=False)
     manager_id = Column(String, ForeignKey("managers.id"), nullable=False)
-    first_name = Column(String)
-    last_name = Column(String)
-    phone = Column(String)
-    email = Column(String)
-    ai_analysis = Column(JSON)
+    applicant_first_name = Column(String)
+    applicant_last_name = Column(String)
+    applicant_phone = Column(String)
+    applicant_email = Column(String)
+    ai_analysis = Column(JSONB)
     resume_sorting_status = Column(String, default="new")
     link_to_tg_bot_sent = Column(Boolean, default=False, nullable=False)
-    resume_video_received = Column(Boolean, default=False, nullable=False)
-    resume_video_path = Column(String)
+    video_received = Column(Boolean, default=False, nullable=False)
+    video_path = Column(String)
     resume_recommended = Column(Boolean, default=False, nullable=False)
     resume_accepted = Column(Boolean, default=False, nullable=False)
     interview_invitation_sent = Column(Boolean, default=False, nullable=False)

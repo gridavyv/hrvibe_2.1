@@ -40,9 +40,10 @@ from services.video_service import (
 """
 from shared_services.video_service import (
     process_incoming_video,
-    download_incoming_video_locally
+    download_incoming_video_locally,
+    get_data_subdirectory_path
 )
-
+"""
 from services.status_validation_service import (
     is_user_in_records,
     is_user_authorized,
@@ -62,36 +63,6 @@ from services.status_validation_service import (
     is_vacany_data_enough_for_resume_analysis
 )
 
-
-from services.data_service import (
-    get_directory_for_video_from_applicants,
-    format_oauth_link_text,
-    create_resume_records_file,
-    get_resume_records_file_path,
-    get_path_to_video_from_applicant_from_resume_records,
-    update_user_records_with_top_level_key,
-    create_user_directory, 
-    create_vacancy_directory,
-    get_vacancy_directory,
-    create_resumes_directory_and_subdirectories,
-    create_record_for_new_resume_id_in_resume_records,
-    get_resume_recommendation_text_from_resume_records,
-    update_resume_record_with_top_level_key,
-    get_resume_directory,
-    create_record_for_new_user_in_records,
-    get_access_token_from_records,
-    get_target_vacancy_id_from_records,
-    get_target_vacancy_name_from_records,
-    get_list_of_resume_ids_for_recommendation,
-    get_negotiation_id_from_resume_record,
-    get_users_records_file_path,
-    get_employer_id_from_records,
-    get_list_of_users_from_records,
-    create_video_from_managers_directory,
-    create_video_from_applicants_directory,
-)
-
-"""
 from services.auth_service import (
     get_token_by_state,
     callback_endpoint_healthcheck,
@@ -148,7 +119,7 @@ from shared_services.questionnaire_service import (
     clear_all_unprocessed_keyboards
 )
 
-from task_queue import TaskQueue
+from shared_services.task_queue_service import TaskQueue
 
 from shared_services.constants import *
 
@@ -169,13 +140,36 @@ from shared_services.data_service import (
     create_oauth_link,
     get_tg_user_data_attribute_from_update_object,
     create_json_file_with_dictionary_content,
-    format_oauth_link_text
+    format_oauth_link_text,
+    create_resume_records_file,
+    get_resume_records_file_path,
+    get_path_to_video_from_applicant_from_resume_records,
+    update_user_records_with_top_level_key,
+    create_user_directory, 
+    create_vacancy_directory,
+    get_vacancy_directory,
+    create_resumes_directory_and_subdirectories,
+    create_record_for_new_resume_id_in_resume_records,
+    get_resume_recommendation_text_from_resume_records,
+    update_resume_record_with_top_level_key,
+    get_resume_directory,
+    create_record_for_new_user_in_records,
+    get_access_token_from_records,
+    get_target_vacancy_id_from_records,
+    get_target_vacancy_name_from_records,
+    get_list_of_resume_ids_for_recommendation,
+    get_negotiation_id_from_resume_record,
+    get_users_records_file_path,
+    get_employer_id_from_records,
+    get_list_of_users_from_records,
+    create_video_from_managers_directory,
+    create_video_from_applicants_directory,
 )
 
 from database import (
     Managers,
     Vacancies,
-    Applicants,
+    Resumes,
 )
 
 HH_CLIENT_ID = os.getenv("HH_CLIENT_ID")
@@ -612,10 +606,12 @@ async def ask_to_record_video_command(update: Update, context: ContextTypes.DEFA
         return
 
     """if not is_vacancy_selected(record_id=bot_user_id):"""
-    if not is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_selected"):
+    vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
+    if not is_value_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
         logger.debug(f"'bot_user_id': {bot_user_id} doesn't have target vacancy selected.")
         await send_message_to_user(update, context, text=MISSING_VACANCY_SELECTION_TEXT)
         return
+
 
     """if is_welcome_video_recorded(record_id=bot_user_id):"""
     if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_video_recorded"):
@@ -715,10 +711,11 @@ async def handle_answer_video_record_request(update: Update, context: ContextTyp
         logger.debug(f"Video record request user decision: {video_record_request_user_decision}")
         # Update user records with selected vacancy data
         """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_record_agreed", value=video_record_request_user_decision)"""
+        vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
         if video_record_request_user_decision is "yes":
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_video_record_agreed": True})
+            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_record_agreed": True})
         else:
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_video_record_agreed": False})
+            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_record_agreed": False})
         logger.debug(f"User records updated")
     
     # ----- PROGRESS THROUGH THE VIDEO FLOW BASED ON THE USER'S RESPONSE -----
@@ -819,10 +816,11 @@ async def handle_answer_confrim_sending_video(update: Update, context: ContextTy
         sending_video_confirmation_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         # Update user records with selected vacancy data
         """update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_video_sending_confirmed", value=sending_video_confirmation_user_decision)"""
+        vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
         if sending_video_confirmation_user_decision is "yes":
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_video_sending_confirmed": True})
+            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_sending_confirmed": True})
         else:
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_video_sending_confirmed": False})
+            update_record_in_db(db_model=Vacancies, record_id=vacancy_id, updates={"video_sending_confirmed": False})
 
     # ----- IF USER CHOSE "YES" start video download  -----
 
@@ -884,7 +882,8 @@ async def select_vacancy_command(update: Update, context: ContextTypes.DEFAULT_T
             return
 
         """if is_vacancy_selected(record_id=bot_user_id):"""
-        if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_selected"):
+        vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
+        if is_boolean_field_true_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
             await send_message_to_user(update, context, text=SUCCESS_TO_SELECT_VACANCY_TEXT)
             raise ValueError(f"Validation failed: vacancy not selected")
 
@@ -1053,7 +1052,8 @@ async def read_vacancy_description_command(update: Update, context: ContextTypes
     
     # ----- VALIDATE VACANCY IS SELECTED and has description and sourcing criterias exist -----
 
-    if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_selected"):
+    vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
+    if is_boolean_field_true_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
         await send_message_to_user(update, context, text=SUCCESS_TO_SELECT_VACANCY_TEXT)
         return
 
@@ -1321,7 +1321,7 @@ async def source_resumes_triggered_by_admin_command(bot_user_id: str) -> None:
             negotiation_id = negotiations_collection_item["id"]
             resume_id = negotiations_collection_item["resume"]["id"]
             """if not is_resume_id_exists_in_resume_records(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id, resume_record_id=resume_id):"""
-            if not is_value_in_db(db_model=Applicants, field_name="id", value=resume_id):
+            if not is_value_in_db(db_model=Resumes, field_name="id", value=resume_id):
                 fresh_resume_id_and_negotiation_id_dict[resume_id] = negotiation_id
         
         logger.debug(f"source_resumes_triggered_by_admin_command: fresh resume ID and negotiation ID dictionary: {fresh_resume_id_and_negotiation_id_dict}")
@@ -1628,7 +1628,8 @@ async def update_resume_records_with_fresh_video_from_applicants_triggered_by_ad
     try:
         # ----- PREPARE PATHS to video files -----
 
-        video_from_applicants_dir = get_directory_for_video_from_applicants(bot_user_id=bot_user_id, vacancy_id=vacancy_id) # ValueError raised if fails
+        """video_from_applicants_dir = get_directory_for_video_from_applicants(bot_user_id=bot_user_id, vacancy_id=vacancy_id) # ValueError raised if fails"""
+        video_from_applicants_dir = get_data_subdirectory_path(subdirectory_name="videos")# ValueError raised if fails
         all_video_paths_list = list(video_from_applicants_dir.glob("*.mp4"))
         fresh_videos_list = []
         success_count = 0
@@ -1860,8 +1861,10 @@ async def user_status(bot_user_id: str) -> dict:
     status_dict["hh_authorization"] = is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="access_token_recieved")
     """status_dict["vacancy_selection"] = is_vacancy_selected(record_id=bot_user_id)"""
     status_dict["vacancy_selection"] = is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_selected")
+
+    vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
     """status_dict["welcome_video_recording"] = is_welcome_video_recorded(record_id=bot_user_id)"""
-    status_dict["vacancy_video_received"] = is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_video_received")
+    status_dict["vacancy_video_received"] = is_boolean_field_true_in_db(db_model=Vacancies, record_id=vacancy_id, field_name="vacancy_video_received")
     target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
     # depends on vacancy selection
     if target_vacancy_id: # not None
@@ -2058,19 +2061,30 @@ async def handle_feedback_message(update: Update, context: ContextTypes.DEFAULT_
     try:
         if context.application:
             # Get user info for admin message
+            """
             user_records_path = get_users_records_file_path()
             user_info = ""
+            """
             try:
+                """
                 with open(user_records_path, "r", encoding="utf-8") as f:
                     records = json.load(f)
-                    """if is_user_in_records(record_id=bot_user_id):"""
-                    if is_value_in_db(db_model=Managers, field_name="id", value=bot_user_id):
+                    if is_user_in_records(record_id=bot_user_id):
                         username = records[bot_user_id].get("username", "N/A")
                         first_name = records[bot_user_id].get("first_name", "N/A")
                         last_name = records[bot_user_id].get("last_name", "N/A")
                         user_info = f"Пользователь: ID: {bot_user_id}, @{username}, {first_name} {last_name})"
                     else:
                         user_info = f"Пользователь ID: {bot_user_id}, не найден в records."
+                """
+                if is_value_in_db(db_model=Managers, field_name="id", value=bot_user_id):
+                    username = get_column_value_in_db(db_model=Managers, field_name="username", value=bot_user_id)
+                    first_name = get_column_value_in_db(db_model=Managers, field_name="first_name", value=bot_user_id)
+                    last_name = get_column_value_in_db(db_model=Managers, field_name="last_name", value=bot_user_id)
+                    user_info = f"Пользователь: ID: {bot_user_id}, @{username}, {first_name} {last_name})"
+                else:
+                    user_info = f"Пользователь ID: {bot_user_id}, не найден в records."
+
             except Exception as e:
                 logger.error(f"Failed to get user info for feedback: {e}")
                 user_info = f"Пользователь ID: {bot_user_id}"

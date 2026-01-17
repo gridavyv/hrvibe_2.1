@@ -45,7 +45,7 @@ from services.status_validation_service import (
     is_vacancy_exist,
 )
 
-from services.data_service import (
+from shared_services.data_service import (
     get_directory_for_video_from_managers,
     get_manager_user_id_from_applicant_bot_records,
     get_vacancy_id_from_applicant_bot_records,

@@ -13,19 +13,20 @@ from shared_services.db_service import (
     get_column_value_in_db,
     update_record_in_db
 )
-from database import Manager
+from database import Managers
 
 # Add project root to path to access shared_services
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 logger = logging.getLogger(__name__)
-
-from services.data_service import (
+"""
+from shared_services.data_service import (
     get_target_vacancy_id_from_records,
     get_directory_for_video_from_managers,
     update_user_records_with_top_level_key,
     )
+"""
 """from services.questionnaire_service import send_message_to_user"""
 from shared_services.questionnaire_service import send_message_to_user
 

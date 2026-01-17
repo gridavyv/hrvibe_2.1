@@ -9,7 +9,7 @@ import logging
 from typing import Callable, Awaitable, Optional, Dict, Any
 from telegram.ext import Application
 """
-from services.data_service import get_users_records_file_path
+from shared_services.data_service import get_users_records_file_path
 from services.status_validation_service import (
     is_vacancy_selected,
     is_vacancy_description_recieved,
@@ -18,6 +18,11 @@ from services.status_validation_service import (
     is_vacany_data_enough_for_resume_analysis,
 )
 """
+
+from shared_services.data_service import (
+    is_vacany_data_enough_for_resume_analysis,
+)   
+
 logger = logging.getLogger(__name__)
 
 

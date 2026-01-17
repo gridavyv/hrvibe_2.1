@@ -26,7 +26,7 @@ except ImportError:
                     key, value = line.split('=', 1)
                     os.environ[key.strip()] = value.strip()
 
-from database import engine, Base, Managers, Vacancies, Applicants
+from database import engine, Base, Managers, Vacancies, Resumes
 from sqlalchemy import inspect
 
 def get_schema():
@@ -111,7 +111,7 @@ def show_expected_schema():
     models = [
         ("Managers", Managers, "managers"),
         ("Vacancies", Vacancies, "vacancies"),
-        ("Applicants", Applicants, "applicants")
+        ("Resumes", Resumes, "applicants")
     ]
     
     for model_name, model, table_name in models:

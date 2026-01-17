@@ -21,6 +21,14 @@ from shared_services.constants import (
     FAIL_TECHNICAL_SUPPORT_TEXT,
 )
 
+from shared_services.db_service import (
+    is_value_in_db,
+    is_boolean_field_true_in_db,
+)
+
+from database import Managers
+
+"""
 # Import from manager_bot services (these will need to be available)
 from manager_bot.services.status_validation_service import (
     is_user_in_records,
@@ -29,6 +37,12 @@ from manager_bot.services.status_validation_service import (
     is_vacancy_selected,
     is_vacany_data_enough_for_resume_analysis,
 )
+"""
+
+from shared_services.data_service import (
+    is_vacany_data_enough_for_resume_analysis,
+)
+
 from manager_bot.services.data_service import (
     get_list_of_users_from_records,
     get_target_vacancy_id_from_records,
@@ -106,8 +120,10 @@ async def admin_anazlyze_sourcing_criterais_command(update: Update, context: Con
         if context.args and len(context.args) == 1:
             target_user_id = context.args[0]
             if target_user_id:
-                if is_user_in_records(record_id=target_user_id):
-                    if is_vacancy_description_recieved(record_id=target_user_id):
+                """if is_user_in_records(record_id=target_user_id):"""
+                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
+                    """if is_vacancy_description_recieved(record_id=target_user_id):"""
+                    if is_boolean_field_true_in_db(db_model=Managers, record_id=target_user_id, field_name="vacancy_description_recieved"):
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import define_sourcing_criterias_triggered_by_admin_command
                         await define_sourcing_criterias_triggered_by_admin_command(bot_user_id=target_user_id)
@@ -159,9 +175,11 @@ async def admin_send_sourcing_criterais_to_user_command(update: Update, context:
         if context.args and len(context.args) == 1:
             target_user_id = context.args[0]
             if target_user_id:
-                if is_user_in_records(record_id=target_user_id):
+                """if is_user_in_records(record_id=target_user_id):"""
+                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
                     logger.debug(f"User {target_user_id} found in records.")
-                    if is_vacancy_sourcing_criterias_recieved(record_id=target_user_id):
+                    """if is_vacancy_sourcing_criterias_recieved(record_id=target_user_id):"""
+                    if is_boolean_field_true_in_db(db_model=Managers, record_id=target_user_id, field_name="vacancy_sourcing_criterias_recieved"):    
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import send_to_user_sourcing_criterias_triggered_by_admin_command
                         await send_to_user_sourcing_criterias_triggered_by_admin_command(bot_user_id=target_user_id, application=context.application)
@@ -213,8 +231,10 @@ async def admin_update_negotiations_command(update: Update, context: ContextType
         if context.args and len(context.args) == 1:
             target_user_id = context.args[0]
             if target_user_id:
-                if is_user_in_records(record_id=target_user_id):
-                    if is_vacancy_selected(record_id=target_user_id):
+                """if is_user_in_records(record_id=target_user_id):"""
+                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
+                    """if is_vacancy_selected(record_id=target_user_id):"""
+                    if is_boolean_field_true_in_db(db_model=Managers, record_id=target_user_id, field_name="vacancy_selected"):
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import source_negotiations_triggered_by_admin_command
                         await source_negotiations_triggered_by_admin_command(bot_user_id=target_user_id) # ValueError raised if fails
@@ -265,7 +285,8 @@ async def admin_get_fresh_resumes_command(update: Update, context: ContextTypes.
         if context.args and len(context.args) == 1:
             target_user_id = context.args[0]
             if target_user_id:
-                if is_user_in_records(record_id=target_user_id):
+                """if is_user_in_records(record_id=target_user_id):"""
+                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
                     if is_vacany_data_enough_for_resume_analysis(user_id=target_user_id):
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import source_resumes_triggered_by_admin_command
@@ -317,7 +338,8 @@ async def admin_anazlyze_resumes_command(update: Update, context: ContextTypes.D
         if context.args and len(context.args) == 1:
             target_user_id = context.args[0]
             if target_user_id:
-                if is_user_in_records(record_id=target_user_id):
+                """if is_user_in_records(record_id=target_user_id):"""
+                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
                     if is_vacany_data_enough_for_resume_analysis(user_id=target_user_id):
                         await send_message_to_user(update, context, text=f"Start creating tasks for analysis of the fresh resumes for user {target_user_id}.")
                         # Import here to avoid circular dependency
@@ -370,7 +392,8 @@ async def admin_update_resume_records_with_applicants_video_status_command(updat
         if context.args and len(context.args) == 1:
             target_user_id = context.args[0]
             if target_user_id:
-                if is_user_in_records(record_id=target_user_id):
+                """if is_user_in_records(record_id=target_user_id):"""
+                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
                     if is_vacany_data_enough_for_resume_analysis(user_id=target_user_id):
                         target_user_vacancy_id = get_target_vacancy_id_from_records(record_id=target_user_id)
                         # Import here to avoid circular dependency
@@ -424,7 +447,8 @@ async def admin_recommend_resumes_command(update: Update, context: ContextTypes.
         if context.args and len(context.args) == 1:
             target_user_id = context.args[0]
             if target_user_id:
-                if is_user_in_records(record_id=target_user_id):
+                """if is_user_in_records(record_id=target_user_id):"""
+                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
                     if is_vacany_data_enough_for_resume_analysis(user_id=target_user_id):
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import recommend_resumes_triggered_by_admin_command

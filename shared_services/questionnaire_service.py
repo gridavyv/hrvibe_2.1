@@ -6,7 +6,7 @@ from telegram.constants import ParseMode
 
 logger = logging.getLogger(__name__)
 
-from services.data_service import (
+from shared_services.data_service import (
     add_persistent_keyboard_message_in_db,
     remove_persistent_keyboard_message_from_db,
     get_persistent_keyboard_messages_from_db,
