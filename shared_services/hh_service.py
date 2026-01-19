@@ -131,6 +131,9 @@ def get_employer_vacancies_from_hh(access_token: str, employer_id: str) -> Optio
     # Fallback to fake data when HH API is unavailable
     return _get_fake_vacancies_data()
 
+    #  !!!!!!! DELETE AFTER TESTING !!!!!!!
+    #  !!!!!!! DELETE AFTER TESTING !!!!!!!
+    #  !!!!!!! DELETE AFTER TESTING !!!!!!!
 
 def filter_open_employer_vacancies(vacancies_json: dict, status_to_filter: str) -> dict:
     """

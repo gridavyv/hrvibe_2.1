@@ -28,7 +28,10 @@ def analyze_vacancy_with_ai(vacancy_data: json, prompt_vacancy_analysis_text: st
     Returns:
         dict: Parsed JSON response from the model.
     """
+    
     logger.debug("Preparing AI request for vacancy analysis…")
+    
+    '''
     user_message = f"""
     Вакансия:
     {json.dumps(vacancy_data, ensure_ascii=False, indent=2)}
@@ -56,6 +59,21 @@ def analyze_vacancy_with_ai(vacancy_data: json, prompt_vacancy_analysis_text: st
         result = {"raw_output": response.choices[0].message.content}
     logger.debug("Vacancy analysis completed.")
     return result
+    '''
+
+    # !!! FOR TESTING ONLY !!!
+    # !!! FOR TESTING ONLY !!!
+    # !!! FOR TESTING ONLY !!!
+    # !!! FOR TESTING ONLY !!!
+
+    with open("/Users/gridavyv/HRVibe/hrvibe_2.1/test_data/fake_sourcing_criterias.json", "r", encoding="utf-8") as f:
+        result = json.load(f)
+    logger.debug(f"Sourcing criterias fetched from fake file: {result}")
+    return result
+
+    # !!! FOR TESTING ONLY !!!
+    # !!! FOR TESTING ONLY !!!
+    # !!! FOR TESTING ONLY !!!  
 
 
 def format_vacancy_analysis_result_for_markdown(file_path: str) -> str:

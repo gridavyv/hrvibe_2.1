@@ -1,8 +1,8 @@
 {
   "items": [
     {
-      "id": "001",
-      "name": "Senior Python Developer",
+      "id": "128088543",
+      "name": "Юрисконсульт",
       "type": {
         "id": "open",
         "name": "Open vacancy"
@@ -16,7 +16,7 @@
       }
     },
     {
-      "id": "002",
+      "id": "vacancy_002",
       "name": "Product Manager",
       "type": {
         "id": "open",

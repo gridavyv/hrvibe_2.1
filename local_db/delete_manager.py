@@ -15,9 +15,9 @@ load_dotenv()
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
-from database import SessionLocal, Managers
+from database import SessionLocal, Managers, Vacancies
 
-def delete_manager_by_id(manager_id, confirm=False):
+def delete_manager_by_id(manager_id, confirm=False, delete_vacancies=False):
     """Delete manager by ID"""
     db = SessionLocal()
     
@@ -28,6 +28,10 @@ def delete_manager_by_id(manager_id, confirm=False):
         if not manager:
             print(f"❌ Manager with ID {manager_id} not found")
             return False
+        
+        # Check for related vacancies
+        vacancies = db.query(Vacancies).filter(Vacancies.manager_id == manager_id).all()
+        vacancy_count = len(vacancies)
         
         # Display manager info before deletion
         print("=" * 60)
@@ -43,6 +47,35 @@ def delete_manager_by_id(manager_id, confirm=False):
         print(f"Created At:                  {manager.created_at}")
         print(f"Updated At:                  {manager.updated_at}")
         print("=" * 60)
+        
+        # Warn about related vacancies
+        if vacancy_count > 0:
+            print(f"\n⚠️  WARNING: This manager has {vacancy_count} related vacancy/vacancies:")
+            for idx, vacancy in enumerate(vacancies, 1):
+                print(f"   {idx}. {vacancy.name or 'N/A'} (ID: {vacancy.id})")
+            print("\n   These vacancies must be deleted first, or use --delete-vacancies flag")
+            print("   to delete them automatically along with the manager.")
+            
+            if not delete_vacancies:
+                print("\n   Options:")
+                print("   1. Delete vacancies first using: python3 local_db/delete_vacancies_by_manager.py", manager_id)
+                print("   2. Use --delete-vacancies flag to delete manager and all vacancies together")
+                
+                if not confirm:
+                    response = input("\n⚠️  Delete manager anyway? This will fail due to foreign key constraint. (yes/no): ").strip().lower()
+                    if response not in ['yes', 'y']:
+                        print("❌ Deletion cancelled")
+                        return False
+                else:
+                    print("\n❌ Cannot delete manager with related vacancies. Use --delete-vacancies flag or delete vacancies first.")
+                    return False
+            else:
+                # Delete vacancies first
+                print(f"\n🗑️  Deleting {vacancy_count} vacancy/vacancies...")
+                for vacancy in vacancies:
+                    db.delete(vacancy)
+                db.commit()
+                print(f"✅ Deleted {vacancy_count} vacancy/vacancies")
         
         # Confirm deletion
         if not confirm:
@@ -69,21 +102,23 @@ def delete_manager_by_id(manager_id, confirm=False):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python3 local_db/delete_manager.py <manager_id> [--confirm]")
+        print("Usage: python3 local_db/delete_manager.py <manager_id> [--confirm] [--delete-vacancies]")
         print("\nOptions:")
-        print("  <manager_id>    The ID of the manager to delete (string)")
-        print("  --confirm       Skip confirmation prompt")
+        print("  <manager_id>        The ID of the manager to delete (string)")
+        print("  --confirm           Skip confirmation prompt")
+        print("  --delete-vacancies  Also delete all related vacancies (required if vacancies exist)")
         print("\nExample:")
         print("  python3 local_db/delete_manager.py 123456789")
-        print("  python3 local_db/delete_manager.py 123456789 --confirm")
+        print("  python3 local_db/delete_manager.py 123456789 --confirm --delete-vacancies")
         sys.exit(1)
     
     try:
         # Convert to string since Managers.id is String type in database
         manager_id = str(sys.argv[1])
         confirm = '--confirm' in sys.argv
+        delete_vacancies = '--delete-vacancies' in sys.argv
         
-        success = delete_manager_by_id(manager_id, confirm=confirm)
+        success = delete_manager_by_id(manager_id, confirm=confirm, delete_vacancies=delete_vacancies)
         sys.exit(0 if success else 1)
         
     except ValueError:

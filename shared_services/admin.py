@@ -27,33 +27,18 @@ from shared_services.db_service import (
     is_boolean_field_true_in_db,
     update_record_in_db,
     get_column_value_in_db,
+    get_column_value_by_field
 )
 
 from database import Managers, Vacancies, Negotiations, Base
 
-"""
-# Import from manager_bot services (these will need to be available)
-from manager_bot.services.status_validation_service import (
-    is_user_in_records,
-    is_vacancy_description_recieved,
-    is_vacancy_sourcing_criterias_recieved,
-    is_vacancy_selected,
-    is_vacany_data_enough_for_resume_analysis,
-)
-"""
+
 
 from shared_services.data_service import (
     is_vacany_data_enough_for_resume_analysis,
     get_tg_user_data_attribute_from_update_object,
 )
-'''
-from manager_bot.services.data_service import (
-    get_list_of_users_from_records,
-    get_target_vacancy_id_from_records,
-    get_tg_user_data_attribute_from_update_object,
-)
-'''
-"""from manager_bot.services.questionnaire_service import send_message_to_user"""
+
 from shared_services.questionnaire_service import send_message_to_user
 
 from manager_bot.manager_bot import send_message_to_admin
@@ -100,8 +85,8 @@ async def admin_get_users_command(update: Update, context: ContextTypes.DEFAULT_
 async def admin_anazlyze_sourcing_criterais_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     #TAGS: [admin]
     """
-    Admin command to analyze sourcing criterias for all users or a specific user.
-    Usage: /admin_analyze_sourcing_criterais [user_id]
+    Admin command to analyze sourcing criterias for a specific vacancy.
+    Usage: /admin_analyze_sourcing_criterais <vacancy_id>
     Only accessible to users whose ID is in the ADMIN_IDS whitelist.
     """
 
@@ -121,26 +106,26 @@ async def admin_anazlyze_sourcing_criterais_command(update: Update, context: Con
 
         # ----- PARSE COMMAND ARGUMENTS -----
 
-        target_user_id = None
+        vacancy_id = None
         if context.args and len(context.args) == 1:
-            target_user_id = context.args[0]
-            if target_user_id:
-                """if is_user_in_records(record_id=target_user_id):"""
-                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
-                    """if is_vacancy_description_recieved(record_id=target_user_id):"""
-                    if is_boolean_field_true_in_db(db_model=Managers, record_id=target_user_id, field_name="vacancy_description_recieved"):
+            vacancy_id = context.args[0]
+            if vacancy_id:
+                # Verify that the vacancy exists
+                if is_value_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
+                    # Check if vacancy has description received
+                    if is_boolean_field_true_in_db(db_model=Vacancies, record_id=vacancy_id, field_name="description_recieved"):
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import define_sourcing_criterias_triggered_by_admin_command
-                        await define_sourcing_criterias_triggered_by_admin_command(bot_user_id=target_user_id)
-                        await send_message_to_user(update, context, text=f"Taks for analysing sourcing criterias is in task_queue for user {target_user_id}.")
+                        await define_sourcing_criterias_triggered_by_admin_command(vacancy_id=vacancy_id)
+                        await send_message_to_user(update, context, text=f"Task for analysing sourcing criterias is in task_queue for vacancy {vacancy_id}.")
                     else:
-                        raise ValueError(f"User {target_user_id} does not have vacancy description received.")
+                        raise ValueError(f"Vacancy {vacancy_id} does not have vacancy description received.")     
                 else:
-                    raise ValueError(f"User {target_user_id} not found in records.")
+                    raise ValueError(f"Vacancy {vacancy_id} not found in database.")  
             else:
-                raise ValueError(f"Invalid command arguments. Usage: /admin_analyze_criterias <user_id>")
+                raise ValueError(f"Invalid command arguments. Usage: /admin_analyze_criterias <vacancy_id>")
         else:
-            raise ValueError(f"Invalid number of arguments. Usage: /admin_analyze_criterias <user_id>")
+            raise ValueError(f"Invalid number of arguments. Usage: /admin_analyze_criterias <vacancy_id>")
     
     except Exception as e:
         logger.error(f"admin_anazlyze_sourcing_criterais_command: Failed to execute command: {e}", exc_info=True)

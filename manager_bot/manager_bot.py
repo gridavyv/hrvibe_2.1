@@ -38,32 +38,7 @@ from shared_services.video_service import (
     download_incoming_video_locally,
     get_data_subdirectory_path
 )
-"""
-from services.status_validation_service import (
-    is_user_in_records,
-    is_user_authorized,
-    is_hh_data_in_user_record,
-    is_vacancy_selected,
-    is_vacancy_description_recieved,
-    is_vacancy_sourcing_criterias_recieved,
-    is_welcome_video_recorded,
-    is_sourcing_criterias_file_exists,
-    is_negotiations_collection_file_exists,
-    is_resume_records_file_exists,
-    is_resume_records_file_not_empty,
-    is_manager_privacy_policy_confirmed,
-    is_applicant_video_recorded,
-    is_resume_accepted,
-    is_resume_id_exists_in_resume_records,
-    is_vacany_data_enough_for_resume_analysis
-)
 
-from services.auth_service import (
-    get_token_by_state,
-    callback_endpoint_healthcheck,
-    BOT_SHARED_SECRET,
-)
-"""
 
 from shared_services.auth_service import (
     get_token_by_state,
@@ -86,27 +61,13 @@ from shared_services.hh_service import (
     get_negotiations_history,
 )
 
-"""
-from services.ai_service import (
-    analyze_vacancy_with_ai, 
-    format_vacancy_analysis_result_for_markdown,
-    analyze_resume_with_ai
-)
-"""
 
 from shared_services.ai_service import (
     analyze_vacancy_with_ai, 
     format_vacancy_analysis_result_for_markdown,
     analyze_resume_with_ai
 )
-"""
-from services.questionnaire_service import (
-    ask_question_with_options, 
-    handle_answer,
-    send_message_to_user,
-    clear_all_unprocessed_keyboards
-)
-"""
+
 from shared_services.questionnaire_service import (
     ask_question_with_options, 
     handle_answer,
@@ -440,7 +401,7 @@ async def hh_authorization_command(update: Update, context: ContextTypes.DEFAULT
             raise ValueError(f"hh_authorization_command: Server authorization is not available. User {bot_user_id} cannot authorize.")
 
         # ------ SEND USER AUTH link in HTML format ------
-        
+
         # Build OAuth link and send it to the user
         auth_link = create_oauth_link(state=bot_user_id)
         # If cannot create oauth link, ValueError is raised from method: create_oauth_link()
@@ -1012,34 +973,49 @@ async def read_vacancy_description_command(update: Update, context: ContextTypes
 
     await send_message_to_user(update, context, text="!!! Поздравляю !!! ты дошел до этапа получения описания вакансии.")
 
-    '''
-    """access_token = get_access_token_from_records(bot_user_id=bot_user_id)
-    target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
-    target_vacancy_name = get_target_vacancy_name_from_records(record_id=bot_user_id)"""
-    access_token = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="access_token")
-    target_vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
-    target_vacancy_name = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_name")
+    access_token = get_column_value_in_db(
+        db_model=Managers,
+        record_id=bot_user_id,
+        field_name="access_token",
+    )
+    # Find vacancy id for this manager (manager_id == bot_user_id)
+    target_vacancy_id = get_column_value_by_field(
+        db_model=Vacancies,
+        search_field_name="manager_id",
+        search_value=bot_user_id,
+        target_field_name="id",
+    )
+    target_vacancy_name = get_column_value_in_db(
+        db_model=Vacancies,
+        record_id=target_vacancy_id,
+        field_name="name",
+    )
     
-    # ----- VALIDATE VACANCY IS SELECTED and has description and sourcing criterias exist -----
+    # ----- VALIDATE description received -----
 
-    vacancy_id = get_column_value_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_id")
-    if is_boolean_field_true_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
+    if is_boolean_field_true_in_db(db_model=Vacancies, record_id=target_vacancy_id, field_name="description_recieved"):
         await send_message_to_user(update, context, text=SUCCESS_TO_SELECT_VACANCY_TEXT)
         return
 
     try:
 
-        # ----- IF FILE with VACANCY DESCRIPTION already exists then SKIP PULLING it from HH -----
-
-        vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
-        vacancy_description_file_path = vacancy_data_dir / "vacancy_description.json"
-        if vacancy_description_file_path.exists():
-            logger.warning(f"Vacancy description file already exists: {vacancy_description_file_path}")
-            return
-
         # ----- PULL VACANCY DESCRIPTION from HH and save it to file -----
-
+        """
         vacancy_description = get_vacancy_description_from_hh(access_token=access_token, vacancy_id=target_vacancy_id)
+        """
+
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+
+        with open("/Users/gridavyv/HRVibe/hrvibe_2.1/test_data/fake_vacancy_description.json", "r", encoding="utf-8") as f:
+            vacancy_description = json.load(f)
+        logger.debug(f"Vacancy description fetched from fake file: {vacancy_description}")
+
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+
         if vacancy_description is None:
             logger.error(f"Failed to get vacancy description from HH: {target_vacancy_name}")
             return
@@ -1048,8 +1024,13 @@ async def read_vacancy_description_command(update: Update, context: ContextTypes
         
         # ----- SAVE VACANCY DESCRIPTION to file and update records -----
 
+        """
         create_json_file_with_dictionary_content(file_path=vacancy_description_file_path, content_to_write=vacancy_description)
         update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_description_recieved", value="yes")
+        """
+        update_column_value_by_field(db_model=Vacancies, search_field_name="id", search_value=target_vacancy_id, target_field_name="description_recieved", new_value=True)
+        update_column_value_by_field(db_model=Vacancies, search_field_name="id", search_value=target_vacancy_id, target_field_name="description_json", new_value=vacancy_description)
+
     
     except Exception as e:
         logger.error(f"Failed to read vacancy description: {e}", exc_info=True)
@@ -1060,7 +1041,7 @@ async def read_vacancy_description_command(update: Update, context: ContextTypes
                 application=context.application,
                 text=f"⚠️ Error read_vacancy_description_command: {e}\nUser ID: {bot_user_id if 'bot_user_id' in locals() else 'unknown'}"
             )
-'''
+    
 
 ########################################################################################
 # ------------ COMMANDS EXECUTED on ADMIN request ------------
@@ -1076,7 +1057,8 @@ async def define_sourcing_criterias_command(update: Update, context: ContextType
     try:
         bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
         logger.info(f"define_sourcing_criterias_command: started. user_id: {bot_user_id}")
-        await define_sourcing_criterias_triggered_by_admin_command(bot_user_id=bot_user_id)
+        target_vacancy_id = get_column_value_by_field(db_model=Vacancies, search_field_name="manager_id", search_value=bot_user_id, target_field_name="id")
+        await define_sourcing_criterias_triggered_by_admin_command(vacancy_id=target_vacancy_id)
     except Exception as e:
         logger.error(f"define_sourcing_criterias_command: Failed to execute: {e}", exc_info=True)
         await send_message_to_user(update, context, text=FAIL_TECHNICAL_SUPPORT_TEXT)
@@ -1087,7 +1069,7 @@ async def define_sourcing_criterias_command(update: Update, context: ContextType
             )
 
 
-async def define_sourcing_criterias_triggered_by_admin_command(bot_user_id: str) -> None:
+async def define_sourcing_criterias_triggered_by_admin_command(vacancy_id: str) -> None:
     # TAGS: [vacancy_related]
     """Prepare everything for vacancy description analysis and 
     create TaksQueue job to get sourcing criteria from AI and save it to file.
@@ -1097,62 +1079,50 @@ async def define_sourcing_criterias_triggered_by_admin_command(bot_user_id: str)
 
     try:
 
-        logger.info(f"define_sourcing_criterias_triggered_by_admin_command: started. user_id: {bot_user_id}")
+        logger.info(f"define_sourcing_criterias_triggered_by_admin_command: started. vacancy_id: {vacancy_id}")
 
         # ----- VALIDATE VACANCY IS SELECTED and has description and sourcing criterias exist -----
 
-        validation_errors = []
-        for field_name in (
-            "vacancy_selected",
-            "vacancy_description_recieved"
-        ):
-            if not is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name=field_name):
-                validation_errors.append(f"{field_name} - False")
-        if validation_errors:
-            raise ValueError(f"Validation failed: {', '.join(validation_errors)}")
+        if not is_value_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
+            raise ValueError(f"Vacancy {vacancy_id} not found in database.")
 
-        # ----- IDENTIFY USER and pull required data from records -----
-
-        target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
+        if not is_boolean_field_true_in_db(db_model=Vacancies, record_id=vacancy_id, field_name="description_recieved"):
+            raise ValueError(f"Vacancy description is not received for vacancy {vacancy_id}.")
 
         # ----- CHECK IF SOURCING CRITERIA is already derived and STOP if it is -----
 
-        """if is_sourcing_criterias_file_exists(record_id=bot_user_id, vacancy_id=target_vacancy_id):"""
-        if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="vacancy_sourcing_criterias_recieved"):
-            raise ValueError(f"Sourcing criterias already exists for user {bot_user_id} and vacancy {target_vacancy_id}")
+        if is_boolean_field_true_in_db(db_model=Vacancies, record_id=vacancy_id, field_name="sourcing_criterias_recieved"):
+            raise ValueError(f"Sourcing criterias is received already for vacancy {vacancy_id}.")
 
         # ----- DO AI ANALYSIS of the vacancy description  -----
 
+        
         # Get files paths for AI analysis
-        vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
-        vacancy_description_file_path = vacancy_data_dir / "vacancy_description.json"
+        vacancy_description=get_column_value_in_db(db_model=Vacancies, record_id=vacancy_id, field_name="description_json")
         prompt_file_path = Path(PROMPT_DIR) / "for_vacancy.txt"
 
         # Load inputs for AI analysis
-        with open(vacancy_description_file_path, "r", encoding="utf-8") as f:
-            vacancy_description = json.load(f)
         with open(prompt_file_path, "r", encoding="utf-8") as f:
             prompt_text = f.read()
 
         # Add AI analysis task to queue
         await ai_task_queue.put(
-            get_sourcing_criterias_from_ai_and_save_to_file,
-            bot_user_id,
+            get_sourcing_criterias_from_ai_and_save_to_db,
+            vacancy_id,
             vacancy_description,
             prompt_text,
-            vacancy_data_dir,
-            task_id=f"vacancy_analysis_{bot_user_id}_{target_vacancy_id}"
-        )
+            task_id=f"vacancy_analysis_{vacancy_id}"
+        )  
+
     except Exception as e:
         logger.error(f"Error in define_sourcing_criterias_command: {e}", exc_info=True)
         raise 
 
 
-async def get_sourcing_criterias_from_ai_and_save_to_file(
-    bot_user_id: str,
+async def get_sourcing_criterias_from_ai_and_save_to_db(
+    vacancy_id: str,
     vacancy_description: dict,
     prompt_text: str,
-    vacancy_data_dir: Path,
     ) -> None:
     # TAGS: [vacancy_related]
     """
@@ -1162,28 +1132,37 @@ async def get_sourcing_criterias_from_ai_and_save_to_file(
 
     # ----- IDENTIFY USER and pull required data from records -----
 
-    logger.info(f"get_sourcing_criterias_from_ai_and_save_to_file: started. user_id: {bot_user_id}")
+    logger.info(f"get_sourcing_criterias_from_ai_and_save_to_file: started. vacancy_id: {vacancy_id}")
 
     try:
-        
+        '''
         # ----- CALL AI ANALYZER -----
 
         vacancy_analysis_result = analyze_vacancy_with_ai(
             vacancy_data=vacancy_description,
             prompt_vacancy_analysis_text=prompt_text
         )
-        
-        # ----- SAVE SOURCING CRITERIAS to file and update records -----
+        '''
 
-        sourcing_file_path = Path(vacancy_data_dir) / "sourcing_criterias.json"
-        with open(sourcing_file_path, "w", encoding="utf-8") as f:
-            json.dump(vacancy_analysis_result, f, ensure_ascii=False, indent=2)
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+
+        with open("/Users/gridavyv/HRVibe/hrvibe_2.1/test_data/fake_sourcing_criterias.json", "r", encoding="utf-8") as f:
+            vacancy_analysis_result = json.load(f)
+        logger.debug(f"Sourcing criterias fetched from fake file: {vacancy_analysis_result}")
+
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!  
+
+        # ----- SAVE SOURCING CRITERIAS to DB -----
+
+        update_column_value_by_field(db_model=Vacancies, search_field_name="id", search_value=vacancy_id, target_field_name="sourcing_criterias_recieved", new_value=True)
+        update_column_value_by_field(db_model=Vacancies, search_field_name="id", search_value=vacancy_id, target_field_name="sourcing_criterias_json", new_value=vacancy_analysis_result)
         
-        update_user_records_with_top_level_key(record_id=bot_user_id, key="vacancy_sourcing_criterias_recieved", value="yes") # ValueError raised if fails
-        logger.info(f"get_sourcing_criterias_from_ai_and_save_to_file: successfully saved sourcing criterias to file: {sourcing_file_path}")
-    
     except Exception as e:
-        logger.error(f"Failed to get sourcing criterias and save to file for user {bot_user_id}: {e}", exc_info=True)        # Send notification to admin about the error
+        logger.error(f"Failed to get sourcing criterias and save to DB for vacancy {vacancy_id}: {e}", exc_info=True)        # Send notification to admin about the error
         raise
 
 

@@ -59,10 +59,30 @@ def get_employer_id_from_json_value_from_db(db_model: Type[Base], record_id: str
 
 # ****** METHODS with TAGS: [create_data] ******
 
+def _resolve_users_data_dir() -> Path:
+    """Resolve USERS_DATA_DIR relative to the project root if it is not absolute."""
+    # shared_services is one level below project root
+    project_root = Path(__file__).parent.parent
+    users_data_env = os.getenv("USERS_DATA_DIR", "./users_data")
+    users_data_path = Path(users_data_env)
+
+    if users_data_path.is_absolute():
+        # If absolute path provided, use it as-is
+        return users_data_path
+
+    # If relative path, resolve it relative to the project root
+    # Strip leading './' to avoid double separators
+    return project_root / users_data_env.lstrip("./")
+
+
 def create_data_directories() -> Path:
     # TAGS: [create_data],[directory_path]
-    """Create a directory for all data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
+    """Create a directory for all data (users_data) and its subdirectories.
+
+    For local development, USERS_DATA_DIR is typically ./users_data, which will be
+    resolved relative to the project root, not the current working directory.
+    """
+    data_dir = _resolve_users_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
     list_of_sub_directories = ["videos", "negotiations", "resumes"]
     for sub_directory in list_of_sub_directories:
@@ -113,11 +133,11 @@ def create_tg_bot_link_for_applicant(bot_user_id: str, vacancy_id: str, resume_i
 def get_data_directory() -> Path:
     # TAGS: [get_data],[directory_path]
     """Get the directory path for user data."""
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
-    #return id if data_dir exists
+    data_dir = _resolve_users_data_dir()
+    # return it if data_dir exists
     if data_dir.exists():
         return data_dir
-    #create it and return the path if it doesn't exist
+    # create it and return the path if it doesn't exist
     else:
         data_dir = create_data_directories()
         return data_dir
