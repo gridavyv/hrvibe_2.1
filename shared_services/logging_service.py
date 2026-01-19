@@ -17,7 +17,18 @@ def setup_logging(max_bytes: int = 20 * 1024 * 1024, backup_count: int = 20):
 
     # ------------- CREATION OF LOGGING FILE -------------
 
-    data_dir = Path(os.getenv("USERS_DATA_DIR", "./users_data"))
+    # Get project root (shared_services is one level down from project root)
+    project_root = Path(__file__).parent.parent
+    
+    # Resolve USERS_DATA_DIR relative to project root, not current working directory
+    users_data_dir_env = os.getenv("USERS_DATA_DIR", "./users_data")
+    if Path(users_data_dir_env).is_absolute():
+        # If absolute path provided, use it as-is
+        data_dir = Path(users_data_dir_env)
+    else:
+        # If relative path, resolve it relative to project root
+        data_dir = project_root / users_data_dir_env.lstrip("./")
+    
     logs_dir = data_dir / "logs" / "manager_bot_logs"
     # Create logs directory and all parent directories if they don't exist
     logs_dir.mkdir(parents=True, exist_ok=True)

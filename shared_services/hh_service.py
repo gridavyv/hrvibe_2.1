@@ -77,7 +77,28 @@ def clean_user_info_received_from_hh(user_info: dict) -> dict:
 
 # ------------------------------ VACANCY related calls ------------------------------
 
+def _get_fake_vacancies_data() -> Optional[dict]:
+    """Load fake vacancies data from JSON file for testing when HH API is unavailable."""
+    try:
+        # Get project root (go up from shared_services to project root)
+        project_root = Path(__file__).parent.parent
+        fake_data_path = project_root / "test_data" / "fake_vacancies.json"
+        
+        if fake_data_path.exists():
+            with open(fake_data_path, "r", encoding="utf-8") as f:
+                fake_data = json.load(f)
+            logger.info(f"Loaded fake vacancies data from {fake_data_path}")
+            return fake_data
+        else:
+            logger.warning(f"Fake vacancies file not found at {fake_data_path}")
+            return None
+    except Exception as e:
+        logger.error(f"Error loading fake vacancies data: {e}", exc_info=True)
+        return None
+
+
 def get_employer_vacancies_from_hh(access_token: str, employer_id: str) -> Optional[dict]:
+    '''
     url = f"https://api.hh.ru/employers/{employer_id}/vacancies/active"
     try:
         r = requests.get(
@@ -101,6 +122,14 @@ def get_employer_vacancies_from_hh(access_token: str, employer_id: str) -> Optio
         else:
             logger.error(f"Error getting employer vacancies: {e}", exc_info=True)
         return None
+        '''
+
+    #  !!!!!!! DELETE AFTER TESTING !!!!!!!
+    #  !!!!!!! DELETE AFTER TESTING !!!!!!!
+    #  !!!!!!! DELETE AFTER TESTING !!!!!!!
+
+    # Fallback to fake data when HH API is unavailable
+    return _get_fake_vacancies_data()
 
 
 def filter_open_employer_vacancies(vacancies_json: dict, status_to_filter: str) -> dict:

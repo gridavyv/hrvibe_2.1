@@ -43,10 +43,19 @@ logger = logging.getLogger(__name__)
 
 # ****** [create_data] ******
 
-def create_new_record_in_db(db_model: Type[Base], record_id: str) -> None:
-    """ Args:
-        record_id: The ID to create (as string)
+def create_new_record_in_db(
+    db_model: Type[Base],
+    record_id: str,
+    initial_values: Optional[dict] = None,
+) -> None:
+    """Create a new record with the given ID.
+
+    Args:
         db_model: The database model class (Managers, Vacancies, Negotiations, etc.)
+        record_id: The ID to create (as string)
+        initial_values: Optional dict of additional column values to set on creation
+                        (e.g., {"manager_id": bot_user_id} for Vacancies where manager_id
+                        is NOT NULL)
     """
     id_column = db_model.__table__.columns.get("id")
     if id_column is None:
@@ -64,11 +73,21 @@ def create_new_record_in_db(db_model: Type[Base], record_id: str) -> None:
         if db.query(db_model).filter(id_column == record_id_value).first():
             logger.debug(f"{db_model.__name__} {record_id} уже существует.")
             return
-        # create new user record in database with minimum available attributes, other attributes will be updated later
-        new_record = db_model(
-            id=record_id_value,
-            first_time_seen=datetime.now(timezone.utc)
-        )
+
+        # create new record in database with minimum available attributes,
+        # other attributes will be updated later
+        # set first_time_seen only if such column exists in the model
+        record_kwargs = {"id": record_id_value}
+        if "first_time_seen" in db_model.__table__.columns:
+            record_kwargs["first_time_seen"] = datetime.now(timezone.utc)
+
+        # apply any additional initial values (only for existing columns)
+        if initial_values:
+            for key, value in initial_values.items():
+                if key in db_model.__table__.columns:
+                    record_kwargs[key] = value
+
+        new_record = db_model(**record_kwargs)
         db.add(new_record)
         db.commit()
         logger.debug(f"{db_model.__name__} {record_id} добавлен в БД")

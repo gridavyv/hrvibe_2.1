@@ -224,6 +224,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     Triggers: 1) setup new user 2) ask privacy policy confirmation
     """
 
+
     # ----- SETUP NEW USER and send welcome message -----
 
     # if existing user, setup_new_user_command will be skipped
@@ -235,6 +236,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await ask_privacy_policy_confirmation_command(update=update, context=context)
 
     # IMPORTANT: ALL OTHER COMMANDS will be triggered from functions if PRIVACY POLICY is confirmed
+
 
 
 async def setup_new_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -862,7 +864,7 @@ async def select_vacancy_command(update: Update, context: ContextTypes.DEFAULT_T
         vacancy_status = VACANCY_STATUS_TO_FILTER
         # get nested dict with open vacancies {id: {id, name, status=open}}
         open_employer_vacancies_dict = filter_open_employer_vacancies(vacancies_json=all_employer_vacancies, status_to_filter=vacancy_status)
-        
+
         # If dict is empty => no open vacancies, inform user and raise exception
         if not open_employer_vacancies_dict:
             await send_message_to_user(update, context, text=FAILED_TO_GET_OPEN_VACANCIES_TEXT)
@@ -874,6 +876,8 @@ async def select_vacancy_command(update: Update, context: ContextTypes.DEFAULT_T
         # Initialize options for user to select a vacancy (from JSON/dict)
         # Build options (which will be tuples of (vacancy_name, vacancy_id)) from dict: key is vacancy_id, value is {id, name, ...}
         answer_options = []
+
+
         for vacancy_id, vacancy_data in open_employer_vacancies_dict.items():
             if not vacancy_data:
                 continue
@@ -923,17 +927,13 @@ async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEF
 
         target_vacancy_id = str(callback_data)
         logger.debug(f"Target vacancy id: {target_vacancy_id}")
-        if target_vacancy_id:
-            update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"vacancy_selected": True})
-            create_new_record_in_db(db_model=Vacancies, record_id=target_vacancy_id)
-            update_record_in_db(db_model=Vacancies, record_id=target_vacancy_id, updates={"manager_id": bot_user_id})
-        else:
+        if not target_vacancy_id:
             raise ValueError(f"No target_vacancy_id {target_vacancy_id} found in callback_data")
-        
+
         # ----- PULL OPTIONS from context (stored when question asked) -----
 
         # Get options from context (stored when question was asked)
-        answer_options=context.user_data.get("vacancy_options", [])
+        answer_options = context.user_data.get("vacancy_options", [])
         if not answer_options:
             raise ValueError(f"No answer_options available in context")
         
@@ -949,19 +949,38 @@ async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEF
                 context.user_data.pop("vacancy_options", None)
                 break
 
-        # ----- UPDATE USER RECORDS with selected vacancy data and infrom user -----
+        if not selected_option:
+            raise ValueError(f"Selected vacancy option not found for callback_data {callback_data}")
+
+        vacancy_name_value = selected_option[0]
+
+        # Create Vacancies record with required NOT NULL fields set immediately
+        update_record_in_db(
+            db_model=Managers,
+            record_id=bot_user_id,
+            updates={"vacancy_selected": True},
+        )
+        create_new_record_in_db(
+            db_model=Vacancies,
+            record_id=target_vacancy_id,
+            initial_values={
+                "manager_id": bot_user_id,
+                "name": vacancy_name_value,
+            },
+        )
+
+        # ----- UPDATE USER RECORDS with selected vacancy data and inform user -----
 
         # Now you can use callback_data or selected_option for your logic
         if update.callback_query and update.callback_query.message:
-            vacancy_name_value = selected_option[0]
-            # Update user records with selected vacancy data
-            update_record_in_db(db_model=Vacancies, record_id=target_vacancy_id, updates={"name": vacancy_name_value}) # ValueError raised if fails
-            
             # Inform user that selected vacancy is being processed
-            if selected_option:
-                vacancy_name, vacancy_id = selected_option
-                await send_message_to_user(update, context, text=f"Вы выбрали вакансию:\n'{vacancy_name}'")
-                await asyncio.sleep(2)
+            vacancy_name, vacancy_id = selected_option
+            await send_message_to_user(
+                update,
+                context,
+                text=f"Вы выбрали вакансию:\n'{vacancy_name}'",
+            )
+            await asyncio.sleep(2)
 
         # ----- ASK USER to record welcome video -----
 
