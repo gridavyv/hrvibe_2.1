@@ -673,7 +673,7 @@ async def handle_answer_video_record_request(update: Update, context: ContextTyp
             return
         video_record_request_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         logger.debug(f"Video record request user decision: {video_record_request_user_decision}")
-        if video_record_request_user_decision is "yes":
+        if video_record_request_user_decision == "yes":
             new_value = True
         else:
             new_value = False
@@ -778,7 +778,7 @@ async def handle_answer_confrim_sending_video(update: Update, context: ContextTy
             return
         sending_video_confirmation_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
         # Update user records with selected vacancy data
-        if sending_video_confirmation_user_decision is "yes":
+        if sending_video_confirmation_user_decision == "yes":
             new_value = True
         else:
             new_value = False
@@ -895,6 +895,7 @@ async def select_vacancy_command(update: Update, context: ContextTypes.DEFAULT_T
                 application=context.application,
                 text=f"⚠️ Error select_vacancy_command: {e}\nUser ID: {bot_user_id if 'bot_user_id' in locals() else 'unknown'}"
             )
+
 
 async def handle_answer_select_vacancy(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # TAGS: [vacancy_related]
