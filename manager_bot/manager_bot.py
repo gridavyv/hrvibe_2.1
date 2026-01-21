@@ -64,7 +64,7 @@ from shared_services.hh_service import (
 
 from shared_services.ai_service import (
     analyze_vacancy_with_ai, 
-    format_vacancy_analysis_result_for_markdown,
+    format_sourcing_criterias_analysis_result_for_markdown,
     analyze_resume_with_ai
 )
 
@@ -197,7 +197,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await ask_privacy_policy_confirmation_command(update=update, context=context)
 
     # IMPORTANT: ALL OTHER COMMANDS will be triggered from functions if PRIVACY POLICY is confirmed
-
 
 
 async def setup_new_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -1166,18 +1165,16 @@ async def get_sourcing_criterias_from_ai_and_save_to_db(
         raise
 
 
-async def send_to_user_sourcing_criterias_triggered_by_admin_command(bot_user_id: str, application: Application) -> None:
+async def send_to_user_sourcing_criterias_triggered_by_admin_command(vacancy_id: str, application: Application) -> None:
 
     try:
-        
-        # ----- IDENTIFY USER and pull required data from records -----
 
-        target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
-        vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
-        sourcing_file_path = Path(vacancy_data_dir) / "sourcing_criterias.json"
+        bot_user_id = get_column_value_by_field(db_model=Vacancies, search_field_name="id", search_value=vacancy_id, target_field_name="manager_id")
+        if not bot_user_id:
+            raise ValueError(f"Manager ID not found for vacancy {vacancy_id}")
 
         # Format and send result to user
-        formatted_result = format_vacancy_analysis_result_for_markdown(str(sourcing_file_path))
+        formatted_result = format_sourcing_criterias_analysis_result_for_markdown(vacancy_id=vacancy_id)
         
         if application and application.bot:
             await application.bot.send_message(
@@ -1190,12 +1187,149 @@ async def send_to_user_sourcing_criterias_triggered_by_admin_command(bot_user_id
                 chat_id=int(bot_user_id),
                 text=SUCCESS_TO_START_SOURCING_TEXT
             )
+            
 
         else:
             raise ValueError(f"Missing required application or bot instance for sending message to user {bot_user_id}")
     except Exception as e:
         logger.error(f"Failed to send sourcing criterias result to user: {e}", exc_info=True)
         raise
+
+
+async def ask_sourcing_criterias_confirmation_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # TAGS: [user_related]
+    """Ask privacy policy confirmation command handler. 
+    Called from: 'start_command'.
+    Triggers: nothing."""
+
+    try:
+        # ----- IDENTIFY USER and pull required data from records -----
+
+        bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
+        logger.info(f"ask_sourcing_criterias_confirmation_command started. user_id: {bot_user_id}")
+
+        if not is_value_in_db(db_model=Managers, field_name="id", value=bot_user_id):
+            await send_message_to_user(update, context, text=FAIL_TO_FIND_USER_IN_RECORDS_TEXT)
+            raise ValueError(f"ask_sourcing_criterias_confirmation_command: user {bot_user_id} not found in database")
+
+        # ----- CHECK IF PRIVACY POLICY is already confirmed and STOP if it is -----
+
+        if is_boolean_field_true_in_db(db_model=Managers, record_id=bot_user_id, field_name="sourcing_criterias_confirmed"):
+            await send_message_to_user(update, context, text=SUCCESS_TO_GET_SOURCING_CRITERIAS_CONFIRMATION_TEXT)
+            return
+
+        # Build options (which will be tuples of (button_text, callback_data))
+        answer_options = [
+            ("Согласен с критериями отбора.", "sourcing_criterias_confirmation:yes"),
+            ("Не согласен, хочу изменить критерии отбора.", "sourcing_criterias_confirmation:no"),
+        ]
+        # Store button_text and callback_data options in context to use it later for button _text identification as this is not stored in "update.callback_query" object
+        context.user_data["sourcing_criterias_confirmation_answer_options"] = answer_options
+        await ask_question_with_options(update, context, question_text=SOURCING_CRITERIAS_CONFIRMATION_TEXT, answer_options=answer_options)
+        logger.info(f"ask_sourcing_criterias_confirmation_command: privacy policy confirmation question with options asked")
+
+    except Exception as e:
+        logger.error(f"Failed to ask privacy policy confirmation: {e}", exc_info=True)
+        await send_message_to_user(update, context, text=FAIL_TECHNICAL_SUPPORT_TEXT)
+        # Send notification to admin about the error
+        if context.application:
+            await send_message_to_admin(
+                application=context.application,
+                text=f"⚠️ Error ask_sourcing_criterias_confirmation_command: {e}\nUser ID: {bot_user_id if 'bot_user_id' in locals() else 'unknown'}"
+            )
+
+
+async def handle_answer_sourcing_criterias_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    # TAGS: [user_related]
+    """Handle button click, updates confirmation status in user records.
+    Called from: nowhere.
+    Triggers commands:
+    - If user agrees to sourcing criterias, triggers 'start_sourcing_command'.
+    - If user does not agree to sourcing criterias, asks user for feedback"""
+
+    # ----- IDENTIFY USER and pull required data from records -----
+
+    bot_user_id = str(get_tg_user_data_attribute_from_update_object(update=update, tg_user_attribute="id"))
+    logger.info(f"handle_answer_policy_confirmation started. user_id: {bot_user_id}")
+    
+    # ------- UNDERSTAND WHAT BUTTON was clicked and get "callback_data" from it -------
+
+    # Get the "callback_data" extracted from "update.callback_query" object created once button clicked
+    selected_callback_code = await handle_answer(update, context)
+
+    # ----- UNDERSTAND TEXT on clicked buttton from option taken from context -----
+
+    # Get options from context or return empty list [] if not found
+    sourcing_criterias_confirmation_answer_options = context.user_data.get("sourcing_criterias_confirmation_answer_options", [])
+    # find selected button text from callback_data
+    for button_text, callback_code in sourcing_criterias_confirmation_answer_options:
+        if selected_callback_code == callback_code:
+            selected_button_text = button_text
+            # Clear privacy policy confirmation answer options from "context" object, because now use "selected_button_text" variable instead
+            context.user_data.pop("sourcing_criterias_confirmation_answer_options", None)
+            break
+
+    # ----- INFORM USER about selected option -----
+
+    # If "options" is NOT an empty list execute the following code
+    if sourcing_criterias_confirmation_answer_options:
+        await send_message_to_user(update, context, text=f"Вы выбрали: '{selected_button_text}'")
+    else:
+        # No options available, inform user and return
+        if update.callback_query and update.callback_query.message:
+            await send_message_to_user(update, context, text=FAIL_TECHNICAL_SUPPORT_TEXT)
+        return
+
+    # ----- UPDATE USER RECORDS with selected vacancy data -----
+
+    # Now you can use callback_data or selected_option for your logic
+    if update.callback_query and update.callback_query.message:
+        if selected_callback_code is None:
+            await send_message_to_user(update, context, text=FAIL_TECHNICAL_SUPPORT_TEXT)
+            return
+        sourcing_criterias_confirmation_user_decision = get_decision_status_from_selected_callback_code(selected_callback_code=selected_callback_code)
+        
+        # Update user records with selected vacancy data
+  
+        sourcing_criterias_confirmation_user_value = True if sourcing_criterias_confirmation_user_decision == "yes" else False
+        update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"sourcing_criterias_confirmed": sourcing_criterias_confirmation_user_value})
+        
+        current_time = datetime.now(timezone.utc).isoformat()
+        update_record_in_db(db_model=Managers, record_id=bot_user_id, updates={"sourcing_criterias_confirmation_time": current_time})
+        
+        logger.debug(f"Sourcing criterias confirmation user decision: {sourcing_criterias_confirmation_user_decision} at {current_time}")
+
+        # ----- IF USER CHOSE "YES" download video to local storage -----
+
+        if sourcing_criterias_confirmation_user_decision == "yes":
+            
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!                   
+
+            await send_message_to_user(update, context, text="!!! Поздравляю, ты дошел до этапа поиска кандидатов !!!")
+            
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+        # !!! FOR TESTING ONLY !!!
+
+        """
+            await send_message_to_user(update, context, text=SUCCESS_TO_GET_SOURCING_CRITERIAS_CONFIRMATION_TEXT)
+
+
+
+        # ----- SEND AUTHENTICATION REQUEST and wait for user to authorize -----
+    
+            # if already authorized, second authorization will be skipped
+            await hh_authorization_command(update=update, context=context)
+        
+        # ----- IF USER CHOSE "NO" inform user about need to give consent to process personal data -----
+
+        else:
+            await send_message_to_user(update, context, text=MISSING_PRIVACY_POLICY_CONFIRMATION_TEXT)
+        """
+
+
 
 
 async def source_negotiations_triggered_by_admin_command(bot_user_id: str) -> None:

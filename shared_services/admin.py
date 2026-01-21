@@ -140,8 +140,8 @@ async def admin_anazlyze_sourcing_criterais_command(update: Update, context: Con
 async def admin_send_sourcing_criterais_to_user_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     #TAGS: [admin]
     """
-    Admin command to send sourcing criterias to a specific user.
-    Usage: /admin_send_sourcing_criterais_to_user [user_id]
+    Admin command to send sourcing criterias to a specific vacancy.
+    Usage: /admin_send_sourcing_criterais_to_user [vacancy_id]
     Only accessible to users whose ID is in the ADMIN_IDS whitelist.
     """
 
@@ -160,6 +160,32 @@ async def admin_send_sourcing_criterais_to_user_command(update: Update, context:
             return
 
         # ----- PARSE COMMAND ARGUMENTS -----
+
+
+        vacancy_id = None
+        if context.args and len(context.args) == 1:
+            vacancy_id = context.args[0]
+            if vacancy_id:
+                # Verify that the vacancy exists
+                if is_value_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
+                    # Check if vacancy has sourcing criterias received
+                    if is_boolean_field_true_in_db(db_model=Vacancies, record_id=vacancy_id, field_name="sourcing_criterias_recieved"):
+                        # Import here to avoid circular dependency
+                        from manager_bot.manager_bot import send_to_user_sourcing_criterias_triggered_by_admin_command
+                        await send_to_user_sourcing_criterias_triggered_by_admin_command(vacancy_id=vacancy_id, application=context.application)
+                        await send_message_to_user(update, context, text=f"Task for analysing sourcing criterias is in task_queue for vacancy {vacancy_id}.")
+                    else:
+                        raise ValueError(f"Vacancy {vacancy_id} does not have sourcing criterias received.")     
+                else:
+                    raise ValueError(f"Vacancy {vacancy_id} not found in database.")  
+            else:
+                raise ValueError(f"Invalid command arguments. Usage: /admin_send_sourcing_criterais_to_user <vacancy_id>")
+        else:
+            raise ValueError(f"Invalid number of arguments. Usage: /admin_send_sourcing_criterais_to_user <vacancy_id>")
+    
+
+
+
 
         target_user_id = None
         if context.args and len(context.args) == 1:

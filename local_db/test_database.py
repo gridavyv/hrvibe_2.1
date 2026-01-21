@@ -60,13 +60,13 @@ def cleanup_test_data(db):
             db.commit()
         
         # Delete vacancy
-        test_vacancy = db.query(Vacancies).filter(Vacancies.id == 1).first()
+        test_vacancy = db.query(Vacancies).filter(Vacancies.id == "1").first()
         if test_vacancy:
             db.delete(test_vacancy)
             db.commit()
         
         # Delete manager
-        test_manager = db.query(Managers).filter(Managers.id == 123456789).first()
+        test_manager = db.query(Managers).filter(Managers.id == "123456789").first()
         if test_manager:
             db.delete(test_manager)
             db.commit()
@@ -87,8 +87,9 @@ def test_crud_operations():
         
         # Create a test manager
         print("  Creating test manager...")
+        test_manager_id = "123456789"
         test_manager = Managers(
-            id=123456789,
+            id=test_manager_id,
             username="test_user",
             first_name="Test",
             last_name="User",
@@ -100,7 +101,7 @@ def test_crud_operations():
         
         # Read the manager
         print("  Reading manager...")
-        manager = db.query(Managers).filter(Managers.id == 123456789).first()
+        manager = db.query(Managers).filter(Managers.id == test_manager_id).first()
         if manager:
             print(f"  ✅ Manager found: {manager.username}")
         else:
@@ -109,11 +110,12 @@ def test_crud_operations():
         
         # Create a test vacancy
         print("  Creating test vacancy...")
+        test_vacancy_id = "1"
         test_vacancy = Vacancies(
-            id=1,
-            manager_id=123456789,
+            id=test_vacancy_id,
+            manager_id=test_manager_id,
             name="Test Vacancy",
-            vacancy_description_recieved=True
+            description_recieved=True,
         )
         db.add(test_vacancy)
         db.commit()
@@ -123,11 +125,10 @@ def test_crud_operations():
         print("  Creating test resume...")
         test_resume = Negotiations(
             id="test_resume_1",
-            vacancy_id=1,
-            manager_id=123456789,
-            first_name="John",
-            last_name="Doe",
-            email="john.doe@example.com"
+            vacancy_id=test_vacancy_id,
+            applicant_first_name="John",
+            applicant_last_name="Doe",
+            applicant_email="john.doe@example.com",
         )
         db.add(test_resume)
         db.commit()

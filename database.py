@@ -59,6 +59,8 @@ class Vacancies(Base):
     description_json = Column(JSONB)
     sourcing_criterias_recieved = Column(Boolean, default=False, nullable=False)
     sourcing_criterias_json = Column(JSONB)
+    sourcing_criterias_confirmed = Column(Boolean, default=False, nullable=False)
+    sourcing_criterias_confirmation_time = Column(TIMESTAMP(timezone=True))
     negotiations_collection_recieved = Column(Boolean, default=False, nullable=False)
     negotiations_collection_path = Column(String)
     created_at = Column(TIMESTAMP(timezone=True), default=func.now())

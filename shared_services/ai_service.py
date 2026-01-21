@@ -7,6 +7,9 @@ import time
 from typing import List, Dict
 from pathlib import Path
 
+from database import Vacancies
+from shared_services.db_service import get_column_value_in_db
+
 # Add project root to path to access shared_services
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
@@ -76,7 +79,7 @@ def analyze_vacancy_with_ai(vacancy_data: json, prompt_vacancy_analysis_text: st
     # !!! FOR TESTING ONLY !!!  
 
 
-def format_vacancy_analysis_result_for_markdown(file_path: str) -> str:
+def format_sourcing_criterias_analysis_result_for_markdown(vacancy_id: str) -> str:
     """Load sourcing criteria JSON and format requirements for Markdown output.
 
     Input path to JSON file with structure example:
@@ -97,10 +100,11 @@ def format_vacancy_analysis_result_for_markdown(file_path: str) -> str:
     - item2
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
+
+        data = get_column_value_in_db(db_model=Vacancies, record_id=vacancy_id, field_name="sourcing_criterias_json")
+
     except Exception as e:
-        return f"[ERROR] Failed to read JSON from {file_path}: {e}"
+        return f"[ERROR] Failed to read sourcing_criterias_json for {vacancy_id}: {e}"
 
     requirements = {}
     if isinstance(data, dict):

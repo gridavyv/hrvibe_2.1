@@ -123,6 +123,8 @@ PRIVACY_POLICY_CONFIRMATION_TEXT = (
     f"- подтвердите <a href=\"{PRIVACY_POLICY_PROCESSING_CONFIRMATION_LINK}\">согласие на обработку персональных данных и видео</a>\n"
 )
 
+SOURCING_CRITERIAS_CONFIRMATION_TEXT = "Вы согласны с предложенными критериями отбора?\n"
+
 APPLICANT_MESSAGE_TEXT_WITHOUT_LINK = "Здравствуйте. Мы очень заинтересовались вашим резюме. Чтобы ускорить процесс выхода на интервью, пройдите в телеграм бота и запишите приветственное видео менеджера:"
 
 # ----- SUCCESS MESSAGES -----
@@ -139,6 +141,7 @@ SUCCESS_TO_SAVE_VIDEO_TEXT_APPLICANT = (
 )
 SUCCESS_TO_SAVE_VIDEO_TEXT = "Приветственное видео успешно сохранено."
 SUCCESS_TO_GET_SOURCING_CRITERIAS_TEXT = "Я уже проанализировал вакансию и определил критерии для отбора кандидатов."
+SUCCESS_TO_GET_SOURCING_CRITERIAS_CONFIRMATION_TEXT = "Критерии на отбор кандидатов получены, можем продолжить работу."
 SUCCESS_TO_START_SOURCING_TEXT = "Пошел искать кандидатов по этим критериям."
 
 # ----- FAIL MESSAGES -----
