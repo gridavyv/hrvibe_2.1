@@ -1050,7 +1050,7 @@ async def read_vacancy_description_command(update: Update, context: ContextTypes
     
 
 ########################################################################################
-# ------------ COMMANDS EXECUTED on ADMIN request ------------
+# ------------ DEFINING SOURCING CRITERIAS on ADMIN request ------------
 ########################################################################################
 
 
@@ -1428,18 +1428,21 @@ async def handle_answer_sourcing_criterias_confirmation(update: Update, context:
         await send_message_to_user(update, context, text=FAIL_TECHNICAL_SUPPORT_TEXT)
 
 
+########################################################################################
+# ------------ COMMANDS EXECUTED on ADMIN request ------------
+########################################################################################
 
-async def source_negotiations_triggered_by_admin_command(bot_user_id: str) -> None:
+async def source_negotiations_triggered_by_admin_command(vacancy_id: str) -> None:
     # TAGS: [resume_related]
     """Sources negotiations collection."""
     
     try:
-        logger.info(f"source_negotiations_triggered_by_admin_command started. user_id: {bot_user_id}")
+        logger.info(f"source_negotiations_triggered_by_admin_command started. vacancy_id: {vacancy_id}")
 
         # ----- IDENTIFY USER and pull required data from records -----
         
-        access_token = get_access_token_from_records(bot_user_id=bot_user_id)
-        target_vacancy_id = get_target_vacancy_id_from_records(record_id=bot_user_id)
+        manager_id = get_column_value_by_field(db_model=Vacancies, search_field_name="id", search_value=vacancy_id, target_field_name="manager_id")
+        access_token = get_column_value_by_field(db_model=Managers, search_field_name="id", search_value=manager_id, target_field_name="access_token")
 
         # ----- IMPORTANT: do not check if NEGOTIATIONS COLLECTION file exists, we update it every time -----
 
@@ -1447,18 +1450,118 @@ async def source_negotiations_triggered_by_admin_command(bot_user_id: str) -> No
 
         #Define what employer_state to use for pulling the collection
         employer_state = EMPLOYER_STATE_RESPONSE
-        #Build path to the file for the collection of negotiations data
-        vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=target_vacancy_id)
-        negotiations_collection_file_path = vacancy_data_dir / f"negotiations_collections_{employer_state}.json"
+
         #Get collection of negotiations data for the target collection status "response"
-        negotiations_collection_data = get_negotiations_collection_with_status_response(access_token=access_token, vacancy_id=target_vacancy_id)
-        # Write negotiations data JSON into negotiations_file_path
-        # If file already exists, it will be overwritten.
-        create_json_file_with_dictionary_content(file_path=str(negotiations_collection_file_path), content_to_write=negotiations_collection_data)
-        logger.info(f"source_negotiations_triggered_by_admin_command: successfully completed for user_id: {bot_user_id}")
+        """
+        negotiations_collection_data = get_negotiations_collection_with_status_response(access_token=access_token, vacancy_id=vacancy_id)
+        """
+
+        # !!! TESTING !!!
+        # !!! TESTING !!!
+        # !!! TESTING !!!
+
+        fake_negotiations_file_path = "/Users/gridavyv/HRVibe/hrvibe_2.1/test_data/fake_negotiations_collections_response.json"
+        with open(fake_negotiations_file_path, "r", encoding="utf-8") as f:
+            negotiations_collection_data = json.load(f)
+
+        # !!! TESTING !!!
+        # !!! TESTING !!!
+        # !!! TESTING !!!
+
+        await parse_negotiations_collection_to_db(vacancy_id=vacancy_id, negotiations_json=negotiations_collection_data)
+
+        logger.info(f"source_negotiations_triggered_by_admin_command: successfully completed for vacancy_id: {vacancy_id}")
     except Exception as e:
-        logger.error(f"source_negotiations_triggered_by_admin_command: Failed to source negotiations for user_id {bot_user_id}: {e}", exc_info=True)
+        logger.error(f"source_negotiations_triggered_by_admin_command: Failed to source negotiations for vacancy_id {vacancy_id}: {e}", exc_info=True)
         raise
+        
+
+async def parse_negotiations_collection_to_db(vacancy_id: str, negotiations_json: dict, ) -> None:
+    # TAGS: [negotiations_related]
+    """
+    Parse negotiations collection JSON and update Negotiations table in database.
+    Args:
+        negotiations_json: Dictionary containing negotiations data with structure:
+            {
+                "items": [
+                    {
+                        "id": "negotiation_id",
+                        "resume": {
+                            "id": "resume_id"
+                        }
+                    },
+                    ...
+                ]
+            }
+        vacancy_id: The vacancy ID to associate negotiations with (required foreign key)
+    
+    Updates Negotiations table:
+        - id: Set to [items][id] (negotiation ID)
+        - resume_id: Set to [items][resume][id] (resume ID)
+        - vacancy_id: Set to provided vacancy_id
+    """
+
+    logger.info(f"_parse_negotiations_collection_to_db: started. vacancy_id: {vacancy_id}")
+    try:
+        if not negotiations_json or "items" not in negotiations_json:
+            raise ValueError("Invalid negotiations_json: missing 'items' key")
+        
+        items = negotiations_json.get("items", [])
+        if not items:
+            logger.warning("parse_negotiations_collection_to_db: No items found in negotiations_json")
+            return
+        
+        logger.info(f"parse_negotiations_collection_to_db: Processing {len(items)} negotiations for vacancy {vacancy_id}")
+        
+        for item in items:
+            # Extract negotiation ID and resume ID
+            negotiation_id = item.get("id")
+            resume = item.get("resume", {})
+            resume_id = resume.get("id") if isinstance(resume, dict) else None
+            
+            if not negotiation_id:
+                logger.warning(f"parse_negotiations_collection_to_db: Skipping item with missing 'id': {item}")
+                continue
+            
+            if not resume_id:
+                logger.warning(f"parse_negotiations_collection_to_db: Skipping negotiation {negotiation_id} with missing resume.id")
+                continue
+            
+            # Ensure negotiation_id and resume_id are strings
+            negotiation_id = str(negotiation_id)
+            resume_id = str(resume_id)
+            
+            # Check if negotiation record already exists
+            if is_value_in_db(db_model=Negotiations, field_name="id", value=negotiation_id):
+                # Update existing record
+                update_record_in_db(
+                    db_model=Negotiations,
+                    record_id=negotiation_id,
+                    updates={
+                        "resume_id": resume_id,
+                        "vacancy_id": vacancy_id
+                    }
+                )
+                logger.debug(f"parse_negotiations_collection_to_db: Updated negotiation {negotiation_id} with resume_id {resume_id}")
+            else:
+                # Create new record
+                create_new_record_in_db(
+                    db_model=Negotiations,
+                    record_id=negotiation_id,
+                    initial_values={
+                        "resume_id": resume_id,
+                        "vacancy_id": vacancy_id
+                    }
+                )
+                logger.debug(f"parse_negotiations_collection_to_db: Created negotiation {negotiation_id} with resume_id {resume_id}")
+        
+        logger.info(f"parse_negotiations_collection_to_db: Successfully processed {len(items)} negotiations for vacancy {vacancy_id}")
+    
+    except Exception as e:
+        logger.error(f"parse_negotiations_collection_to_db: Failed to parse negotiations: {e}", exc_info=True)
+        raise
+
+
 
 
 async def source_resumes_triggered_by_admin_command(bot_user_id: str) -> None:

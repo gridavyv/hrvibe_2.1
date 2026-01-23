@@ -98,7 +98,7 @@ async def run_manager_bot() -> None:
     application.add_handler(CommandHandler("admin_get_managers", admin_get_users_command))
     application.add_handler(CommandHandler("admin_analyze_criterias", admin_anazlyze_sourcing_criterais_command))
     application.add_handler(CommandHandler("admin_send_criterias_to_user", admin_send_sourcing_criterais_to_user_command))  
-    application.add_handler(CommandHandler("admin_update_neg_coll", admin_update_negotiations_command))
+    application.add_handler(CommandHandler("admin_update_negotiations", admin_update_negotiations_command))
     application.add_handler(CommandHandler("admin_get_fresh_resumes", admin_get_fresh_resumes_command))
     application.add_handler(CommandHandler("admin_analyze_resumes", admin_anazlyze_resumes_command))
     application.add_handler(CommandHandler("admin_update_video_for_all", admin_update_resume_records_with_applicants_video_status_command))

@@ -196,8 +196,8 @@ async def admin_send_sourcing_criterais_to_user_command(update: Update, context:
 async def admin_update_negotiations_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     #TAGS: [admin]
     """
-    Admin command to update negotiations for all users or a specific user.
-    Usage: /admin_update_neg_coll_for_all [user_id]
+    Admin command to update negotiations for specific vacancy.
+    Usage: /admin_update_negotiations [vacancy_id]
     Only accessible to users whose ID is in the ADMIN_IDS whitelist.
     """
 
@@ -217,26 +217,26 @@ async def admin_update_negotiations_command(update: Update, context: ContextType
 
         # ----- PARSE COMMAND ARGUMENTS -----
 
-        target_user_id = None
+        vacancy_id = None
         if context.args and len(context.args) == 1:
-            target_user_id = context.args[0]
-            if target_user_id:
-                """if is_user_in_records(record_id=target_user_id):"""
-                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
-                    """if is_vacancy_selected(record_id=target_user_id):"""
-                    if is_boolean_field_true_in_db(db_model=Managers, record_id=target_user_id, field_name="vacancy_selected"):
-                        # Import here to avoid circular dependency
-                        from manager_bot.manager_bot import source_negotiations_triggered_by_admin_command
-                        await source_negotiations_triggered_by_admin_command(bot_user_id=target_user_id) # ValueError raised if fails
-                        await send_message_to_user(update, context, text=f"Negotiations collection updated for user {target_user_id}.")
-                    else:
-                        raise ValueError(f"User {target_user_id} does not have enough vacancy data for resume analysis.")
+            vacancy_id = context.args[0]
+            if vacancy_id:
+                # Verify that the vacancy exists
+                if is_value_in_db(db_model=Vacancies, field_name="id", value=vacancy_id):
+                    
+                    # Import here to avoid circular dependency
+                    from manager_bot.manager_bot import source_negotiations_triggered_by_admin_command
+                    from shared_services.constants import EMPLOYER_STATE_RESPONSE
+                    
+                    # Fetch negotiations collection (saves to file)
+                    await source_negotiations_triggered_by_admin_command(vacancy_id=vacancy_id)
+                    await send_message_to_user(update, context, text=f"Negotiations collection updated and parsed to DB for vacancy {vacancy_id}.")
                 else:
-                    raise ValueError(f"User {target_user_id} not found in records.")
+                    raise ValueError(f"Vacancy {vacancy_id} not found in database.")
             else:
-                raise ValueError(f"Invalid command arguments. Usage: /admin_update_neg_coll <user_id>")
+                raise ValueError(f"Invalid command arguments. Usage: /admin_update_negotiations <vacancy_id>")
         else:
-            raise ValueError(f"Invalid number of arguments. Usage: /admin_update_neg_coll <user_id>")
+            raise ValueError(f"Invalid number of arguments. Usage: /admin_update_negotiations <vacancy_id>")
     
     except Exception as e:
         logger.error(f"admin_update_negotiations_command: Failed to execute command: {e}", exc_info=True)
