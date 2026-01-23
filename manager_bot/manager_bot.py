@@ -1532,18 +1532,7 @@ async def parse_negotiations_collection_to_db(vacancy_id: str, negotiations_json
             resume_id = str(resume_id)
             
             # Check if negotiation record already exists
-            if is_value_in_db(db_model=Negotiations, field_name="id", value=negotiation_id):
-                # Update existing record
-                update_record_in_db(
-                    db_model=Negotiations,
-                    record_id=negotiation_id,
-                    updates={
-                        "resume_id": resume_id,
-                        "vacancy_id": vacancy_id
-                    }
-                )
-                logger.debug(f"parse_negotiations_collection_to_db: Updated negotiation {negotiation_id} with resume_id {resume_id}")
-            else:
+            if not is_value_in_db(db_model=Negotiations, field_name="id", value=negotiation_id):
                 # Create new record
                 create_new_record_in_db(
                     db_model=Negotiations,
@@ -1554,6 +1543,8 @@ async def parse_negotiations_collection_to_db(vacancy_id: str, negotiations_json
                     }
                 )
                 logger.debug(f"parse_negotiations_collection_to_db: Created negotiation {negotiation_id} with resume_id {resume_id}")
+            else:        
+                logger.debug(f"parse_negotiations_collection_to_db: Skipping^ cause negotiation {negotiation_id} exists in database")
         
         logger.info(f"parse_negotiations_collection_to_db: Successfully processed {len(items)} negotiations for vacancy {vacancy_id}")
     
