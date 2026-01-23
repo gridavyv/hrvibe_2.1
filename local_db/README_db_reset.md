@@ -36,7 +36,7 @@ psql -h localhost -U gridavyv -d postgres
 ## 2.3) Then inside `psql` create DB:
 
 ```sql
-DROP DATABASE IF EXISTS hrbive_old;
+DROP DATABASE IF EXISTS hrvibe_old;
 ```
 ## 2.4) Exit with `\q`.
 

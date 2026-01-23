@@ -84,7 +84,7 @@ def create_data_directories() -> Path:
     """
     data_dir = _resolve_users_data_dir()
     data_dir.mkdir(parents=True, exist_ok=True)
-    list_of_sub_directories = ["videos", "negotiations", "resumes"]
+    list_of_sub_directories = ["videos", "audio", "negotiations", "resumes"]
     for sub_directory in list_of_sub_directories:
         sub_directory_path = data_dir / sub_directory
         sub_directory_path.mkdir(parents=True, exist_ok=True)
@@ -146,7 +146,7 @@ def get_data_directory() -> Path:
 def get_data_subdirectory_path(subdirectory_name: str) -> Path:
     # TAGS: [get_data],[directory_path]
     """Get the directory path for a subdirectory of user data."""
-    allowed_subdirectories = ["videos", "vacancy_descriptions", "vacancy_sourcing_criterias", "negotiations", "resumes"]
+    allowed_subdirectories = ["videos", "audio", "negotiations", "resumes"]
     if subdirectory_name not in allowed_subdirectories:
         logger.error(f"Invalid subdirectory name: {subdirectory_name}")
         return None
@@ -410,81 +410,6 @@ def clear_all_persistent_keyboard_messages_from_db(bot_user_id: str) -> None:
 
 # ****** METHODS with TAGS: [format_data] ******
 
-'''
-def create_user_directory(bot_user_id: str) -> Path:
-    # TAGS: [create_data],[directory_path]
-    """Create a subdirectory for a unique user in the parent directory and return the path."""
-    data_dir = get_data_directory()
-    user_data_dir = data_dir / f"bot_user_id_{bot_user_id}"
-    # Create directory if it doesn't exist
-    user_data_dir.mkdir(exist_ok=True)
-    logger.debug(f"{user_data_dir} created or exists.")
-    return user_data_dir
-
-
-def create_vacancy_directory(bot_user_id: str, vacancy_id: str) -> Path:
-    # TAGS: [create_data],[directory_path]
-    """Create a subdirectory for a vacancy in the user directory and return the path.
-    Also creates subdirectories for video from managers and video from applicants."""
-    user_data_dir = get_user_directory(bot_user_id=bot_user_id)
-    vacancy_data_dir = user_data_dir / f"vacancy_id_{vacancy_id}"
-    if vacancy_data_dir.mkdir(exist_ok=True):
-        logger.debug(f"{vacancy_data_dir} created.")
-        return vacancy_data_dir
-    else:
-        logger.debug(f"{vacancy_data_dir} already exists.")
-        return vacancy_data_dir
-
-
-def create_video_from_managers_directory(bot_user_id: str, vacancy_id: str) -> Path:
-    # TAGS: [create_data],[directory_path]
-    """Create a subdirectory for video from managers in the vacancy directory and return the path."""
-    vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-    video_from_managers_data_path = create_custom_directory(parent_directory=vacancy_data_dir, new_directory_name="video_from_managers")
-    logger.debug(f"'video_from_managers' directory {video_from_managers_data_path} created.")
-    return video_from_managers_data_path
-
-
-def create_video_from_applicants_directory(bot_user_id: str, vacancy_id: str) -> Path:
-    # TAGS: [create_data],[directory_path]
-    """Create a subdirectory for video from applicants in the vacancy directory and return the path."""
-    vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-    video_from_applicants_data_path = create_custom_directory(parent_directory=vacancy_data_dir, new_directory_name="video_from_applicants")
-    logger.debug(f"'video_from_applicants' directory {video_from_applicants_data_path} created.")
-    return video_from_applicants_data_path
-
-
-def create_resumes_directory_and_subdirectories(bot_user_id: str, vacancy_id: str, resume_subdirectories: list[str]) -> None:
-    # TAGS: [create_data],[directory_path]
-    """Create directories for resumes and subdirectories for new, passed, failed resumes."""
-    vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-    resume_data_path = create_custom_directory(parent_directory=vacancy_data_dir, new_directory_name="resumes")
-    logger.debug(f"'resumes' directory {resume_data_path} created.")
-    for subdirectory in resume_subdirectories:
-        create_custom_directory(parent_directory=resume_data_path, new_directory_name=subdirectory)
-
-
-def create_custom_directory(parent_directory: Path, new_directory_name: str) -> Path:
-    # TAGS: [create_data],[directory_path]
-    """Create a new directory in the parent directory and return the path."""
-    custom_dir = parent_directory / new_directory_name
-    custom_dir.mkdir(exist_ok=True)
-    logger.debug(f"{custom_dir} created or exists.")
-    return custom_dir
-
-
-def create_users_records_file() -> Path:
-    # TAGS: [create_data],[file_path]
-    """Create a file with users data records if it doesn't exist."""
-    data_dir = get_data_directory()
-    users_records_file_path = data_dir / f"{USERS_RECORDS_FILENAME}.json"
-    if not users_records_file_path.exists():
-        users_records_file_path.write_text(json.dumps({}), encoding="utf-8")
-        logger.debug(f"{users_records_file_path} created.")
-    else:
-        logger.debug(f"{users_records_file_path} already exists.")
-    return users_records_file_path
-'''
 
 def create_resume_records_file(bot_user_id: str, vacancy_id: str) -> None:
     # TAGS: [create_data],[file_path]
@@ -499,187 +424,6 @@ def create_resume_records_file(bot_user_id: str, vacancy_id: str) -> None:
     else:
         logger.debug(f"{resume_records_file_path} already exists.")
 
-'''
-def create_json_file_with_dictionary_content(file_path: Path, content_to_write: dict) -> None:
-    # TAGS: [create_data],[file_path]
-    """Create a JSON file from a dictionary.
-    If file already exists, it will be overwritten."""
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(content_to_write, f, ensure_ascii=False, indent=2)
-    logger.debug(f"Content written to {file_path}")
-
-
-def create_record_for_new_user_in_records(record_id: str) -> None:
-    # TAGS: [create_data]
-    """Update records and create user directory."""    
-    users_records_file_path = get_users_records_file_path()
-    # Read existing data
-    with open(users_records_file_path, "r", encoding="utf-8") as f:
-        records = json.load(f)
-    # Define standard key-values for new user    
-    standard_new_user_values = {
-        "id": record_id,
-        "username": "",
-        "first_name": "",
-        "last_name": "",
-        "first_time_seen": datetime.now(timezone.utc).isoformat(),
-        "privacy_policy_confirmed": "no",
-        "privacy_policy_confirmation_time": "",
-        "access_token_recieved": "no",
-        "access_token": "",
-        "access_token_expires_at": "",
-        "data_from_hh": {},
-        "vacancy_selected": "no",
-        "vacancy_id": "",
-        "vacancy_name": "",
-        "vacancy_video_record_agreed": "no",
-        "vacancy_video_sending_confirmed": "no",
-        "vacancy_video_received": "no",
-        "vacancy_video_path": "",
-        "vacancy_description_recieved": "no",
-        "vacancy_sourcing_criterias_recieved": "no",
-    }
-    # Check if bot_user_id is not in manager_users_records keys
-    if record_id not in records:
-        records[record_id] = standard_new_user_values
-        users_records_file_path.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.debug(f"Record ID '{record_id}' added to records")
-    else:
-        logger.debug(f"Record ID '{record_id}' already exists in records, skipping update")
-
-
-def create_record_for_new_resume_id_in_resume_records(bot_user_id: str, vacancy_id: str, resume_record_id: str) -> None:
-    """Create a new resume record in the resume records file. TAGS: [create_data]"""
-
-    #resume_records_path = Path(DATA_DIR) / f"bot_user_id_{bot_user_id}" / f"vacancy_id_{vacancy_id}" / "resumes" / f"{RESUME_RECORDS_FILENAME}.json"
-    resume_records_path = get_resume_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-    resume_records_file_path = resume_records_path / f"{RESUME_RECORDS_FILENAME}.json"
-    # Read existing data
-    with open(resume_records_file_path, "r", encoding="utf-8") as f:
-        resume_records = json.load(f)
-    
-    # Convert user_id to string since JSON keys are always strings
-    resume_record_id_str = str(resume_record_id)
-    vacancy_name = get_target_vacancy_name_from_records(record_id=bot_user_id)
-
-    if resume_record_id not in resume_records:
-        resume_records[resume_record_id_str] = {
-            "manager_bot_user_id": bot_user_id,
-            "vacancy_id": vacancy_id,
-            "vacancy_name": vacancy_name,
-            "negotiation_id": "",
-            "resume_id": resume_record_id,
-            "first_name": "",
-            "last_name": "",
-            "phone": "",
-            "email": "",
-            "ai_analysis": {},
-            "resume_sorting_status": "new",
-            "request_to_shoot_resume_video_sent": "",
-            "resume_video_received": "",
-            "resume_video_path": "",
-            "resume_recommended": "",
-            "resume_accepted": ""
-        }
-        resume_records_file_path.write_text(json.dumps(resume_records, ensure_ascii=False, indent=2), encoding="utf-8")
-        logger.info(f"{resume_records_file_path} has been successfully created with new resume_record: {resume_record_id_str}")
-    else:
-        logger.debug(f"Skipping creation of new resume record: {resume_record_id_str} because it already exists in the file {resume_records_file_path}")
-
-
-def get_directory_for_video_from_managers(bot_user_id: str, vacancy_id: str) -> Path:
-    # TAGS: [get_data],[directory_path]
-    """Get the directory path for managers videos."""
-    vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-    managers_video_data_dir = vacancy_data_dir / "video_from_managers"
-    if managers_video_data_dir.exists():
-        logger.debug(f"get_directory_for_video_from_managers: 'video_from_managers' directory {managers_video_data_dir} exists.")
-        return managers_video_data_dir
-    else:
-        logger.debug(f"get_directory_for_video_from_managers: 'video_from_managers' directory {managers_video_data_dir} does not exist.")
-        return None
-
-
-def get_directory_for_video_from_applicants(bot_user_id: str, vacancy_id: str) -> Path:
-    # TAGS: [get_data],[directory_path]
-    """Get the directory path for applicants videos."""
-    vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-    applicants_video_data_dir = vacancy_data_dir / "video_from_applicants"
-    if applicants_video_data_dir.exists():
-        logger.debug(f"'video_from_applicants' directory {applicants_video_data_dir} exists.")
-        return applicants_video_data_dir
-    else:
-        logger.debug(f"'video_from_applicants' directory {applicants_video_data_dir} does not exist.")
-        raise ValueError(f"Video from applicants directory does not exist for bot user id: {bot_user_id}, vacancy id: {vacancy_id}")
-
-
-def get_user_directory(bot_user_id: str) -> Path:
-    # TAGS: [get_data],[directory_path]
-    """Get the directory path for a user."""
-    data_dir = get_data_directory()
-    user_data_dir = data_dir / f"bot_user_id_{bot_user_id}"
-    if user_data_dir.exists():
-        logger.debug(f"{user_data_dir} exists.")
-        return user_data_dir
-    else:
-        user_data_dir = create_user_directory(bot_user_id=bot_user_id)
-        logger.debug(f"{user_data_dir} created.")
-        return user_data_dir
-
-
-def get_vacancy_directory(bot_user_id: str, vacancy_id: str) -> Path:
-    # TAGS: [get_data],[directory_path]
-    """Get the directory path for a vacancy."""
-    user_data_dir = get_user_directory(bot_user_id=bot_user_id)
-    vacancy_data_dir = user_data_dir / f"vacancy_id_{vacancy_id}"
-    if vacancy_data_dir.exists():
-        logger.debug(f"{vacancy_data_dir} exists.")
-        return vacancy_data_dir
-    else:
-        vacancy_data_dir = create_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-        logger.debug(f"{vacancy_data_dir} created.")
-        return vacancy_data_dir
-
-
-def get_resume_directory(bot_user_id: str, vacancy_id: str) -> Path:
-    # TAGS: [get_data],[directory_path]
-    """Get the directory path for a resume."""
-    vacancy_data_dir = get_vacancy_directory(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
-    if vacancy_data_dir is None:
-        return None
-    resume_data_dir = vacancy_data_dir / "resumes"
-    if resume_data_dir.exists():
-        return resume_data_dir
-    else:
-        logger.debug(f"{resume_data_dir} not found")
-        return None
-
-
-def get_applicants_video_directory() -> Path:
-    # TAGS: [get_data],[directory_path]
-    """Get the directory path for a resume."""
-    data_dir = get_data_directory()
-    applicants_video_data_dir = data_dir / "applicants_video"
-    if applicants_video_data_dir.exists():
-        logger.debug(f"{applicants_video_data_dir} exists.")
-        return applicants_video_data_dir
-    else:
-        applicants_video_data_dir = create_custom_directory(parent_directory=data_dir, new_directory_name="applicants_video")
-        logger.debug(f"{applicants_video_data_dir} created.")
-        return None
-
-
-def get_users_records_file_path() -> Path:
-    # TAGS: [get_data],[file_path]
-    """Get the path for a users records file."""
-    data_dir = get_data_directory()
-    users_records_file_path = data_dir / f"{USERS_RECORDS_FILENAME}.json"
-    if users_records_file_path.exists():
-        return users_records_file_path
-    else:
-        users_records_file_path = create_users_records_file()
-        return users_records_file_path
-'''
 
 def get_resume_records_file_path(bot_user_id: str, vacancy_id: str) -> Path:
     # TAGS: [get_data],[file_path]
@@ -696,46 +440,6 @@ def get_resume_records_file_path(bot_user_id: str, vacancy_id: str) -> Path:
         create_resume_records_file(bot_user_id=bot_user_id, vacancy_id=vacancy_id)
         logger.debug(f"'{RESUME_RECORDS_FILENAME}' created in {resume_data_dir}")
         return resume_records_file_path
-
-'''
-def get_access_token_from_records(bot_user_id: str) -> Optional[str]:
-    """Get access token from users records. TAGS: [get_data]"""
-    users_records_file_path = get_users_records_file_path()
-    with open(users_records_file_path, "r", encoding="utf-8") as f:
-        records = json.load(f)
-    if bot_user_id in records:
-        return records[bot_user_id]["access_token"]
-    else:
-        logger.debug(f"'access_token' not found for 'bot_user_id': {bot_user_id} in {users_records_file_path}")
-        return None
-
-
-def get_target_vacancy_id_from_records(record_id: str) -> Optional[str]:
-    """Get target vacancy id from users records. TAGS: [get_data]"""
-    users_records_file_path = get_users_records_file_path()
-    with open(users_records_file_path, "r", encoding="utf-8") as f:
-        records = json.load(f)
-    if record_id in records:
-        vacancy_id = records[record_id].get("vacancy_id")
-        if vacancy_id and vacancy_id != "":
-            return vacancy_id
-    logger.debug(f"'target vacancy id' not found for 'bot_user_id': {record_id} in {users_records_file_path}")
-    return None
-
-
-def get_target_vacancy_name_from_records(record_id: str) -> Optional[str]:
-    """Get target vacancy name from users records. TAGS: [get_data]"""
-    users_records_file = get_users_records_file_path()
-    with open(users_records_file, "r", encoding="utf-8") as f:
-        records = json.load(f)
-    if record_id in records:
-        vacancy_name = records[record_id].get("vacancy_name")
-        if vacancy_name and vacancy_name != "":
-            return vacancy_name
-    logger.debug(f"'target vacancy name' not found for 'bot_user_id': {record_id} in {users_records_file}")
-    return None
-
-'''
 
 def get_list_of_resume_ids_for_recommendation(bot_user_id: str, vacancy_id: str) -> list[str]:
     # TAGS: [get_data]

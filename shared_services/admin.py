@@ -173,7 +173,7 @@ async def admin_send_sourcing_criterais_to_user_command(update: Update, context:
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import send_to_user_sourcing_criterias_triggered_by_admin_command
                         await send_to_user_sourcing_criterias_triggered_by_admin_command(vacancy_id=vacancy_id, application=context.application)
-                        await send_message_to_user(update, context, text=f"Sned sourcing criteria for vacancy {vacancy_id} to user. Waiting for feedback.")
+                        await send_message_to_user(update, context, text=f"Sent sourcing criteria for vacancy {vacancy_id} to user. Waiting for feedback.")
                     else:
                         raise ValueError(f"Vacancy {vacancy_id} does not have sourcing criterias received.")     
                 else:
@@ -539,10 +539,11 @@ async def admin_send_message_command(update: Update, context: ContextTypes.DEFAU
 async def admin_pull_file_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     #TAGS: [admin]
     """
-    Admin command to pull and send log files.
+    Admin command to pull and send files (logs, videos, audio, etc.).
     Usage: /admin_pull_file <file_relative_path>
     Usage example: /admin_pull_file logs/manager_bot_logs/1234432.log
-    Sends the log file as a document to the admin chat.
+    Usage example: /admin_pull_file audio/manager_id_123_vacancy_id_456_time_20260123_120622.ogg
+    Sends the file as a document to the admin chat.
     """
     
     try:
@@ -575,7 +576,7 @@ async def admin_pull_file_command(update: Update, context: ContextTypes.DEFAULT_
 
         # ----- VALIDATE FILE EXTENSION -----
 
-        valid_extensions = [".log", ".json", ".mp4"]
+        valid_extensions = [".log", ".json", ".mp4", ".ogg", ".mp3", ".wav", ".m4a", ".flac"]
         file_extension = file_path.suffix
         if file_extension not in valid_extensions:
             invalid_extension_text = f"Invalid file extension.\nValid: {', '.join(valid_extensions)}"
@@ -850,10 +851,17 @@ def _convert_value_to_type(value_str: str, column_type) -> Any:
     
     elif isinstance(column_type, JSONB):
         # Handle JSON values
+        import ast
         try:
+            # First try parsing as valid JSON (with double quotes)
             return json.loads(value_str)
         except json.JSONDecodeError:
-            raise ValueError(f"Cannot parse '{value_str}' as JSON. Use valid JSON format")
+            # If that fails, try parsing as Python dict syntax (with single quotes)
+            # ast.literal_eval safely evaluates Python literals (dicts, lists, strings, etc.)
+            try:
+                return ast.literal_eval(value_str)
+            except (ValueError, SyntaxError) as e:
+                raise ValueError(f"Cannot parse '{value_str}' as JSON. Use valid JSON format with double quotes or Python dict format with single quotes. Error: {e}")
     
     else:
         # Default to string
@@ -870,7 +878,8 @@ async def admin_update_db_command(update: Update, context: ContextTypes.DEFAULT_
     /admin_update_db managers 7853115214 access_token "new_token_value"
     /admin_update_db managers 7853115214 privacy_policy_confirmed true
     /admin_update_db managers 7853115214 access_token_expires_at 1234567890
-    /admin_update_db vacancies vacancy_123 name "New Vacancy Name"
+    /admin_update_db vacancies vacancy_123 name "New Vacancy Name"    
+    Note: For JSON columns, you can use either Python dict syntax (single quotes) or JSON format (double quotes).
     """
     
     try:
