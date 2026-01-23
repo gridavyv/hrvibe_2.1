@@ -142,7 +142,7 @@ SUCCESS_TO_SAVE_VIDEO_TEXT_APPLICANT = (
 SUCCESS_TO_SAVE_VIDEO_TEXT = "Приветственное видео успешно сохранено."
 SUCCESS_TO_GET_SOURCING_CRITERIAS_TEXT = "Я уже проанализировал вакансию и определил критерии для отбора кандидатов."
 SUCCESS_TO_GET_SOURCING_CRITERIAS_CONFIRMATION_TEXT = "Критерии на отбор кандидатов получены, можем продолжить работу."
-SUCCESS_TO_START_SOURCING_TEXT = "Пошел искать кандидатов по этим критериям."
+#SUCCESS_TO_START_SOURCING_TEXT = "Пошел искать кандидатов по этим критериям."
 
 # ----- FAIL MESSAGES -----
 FAIL_TECHNICAL_SUPPORT_TEXT = "Произошла ошибка. Тех. поддержка уже спешит на помощь."

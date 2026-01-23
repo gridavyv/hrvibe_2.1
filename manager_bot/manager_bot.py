@@ -1167,6 +1167,12 @@ async def get_sourcing_criterias_from_ai_and_save_to_db(
 
 async def send_to_user_sourcing_criterias_triggered_by_admin_command(vacancy_id: str, application: Application) -> None:
 
+    """
+    Sends sourcing criterias analysis result to user and then asks for confirmation.
+    This function is triggered by admin command and therefore works with `Application`
+    instance instead of `update` / `context`.
+    """
+
     try:
 
         bot_user_id = get_column_value_by_field(db_model=Vacancies, search_field_name="id", search_value=vacancy_id, target_field_name="manager_id")
@@ -1183,11 +1189,12 @@ async def send_to_user_sourcing_criterias_triggered_by_admin_command(vacancy_id:
                 parse_mode=ParseMode.MARKDOWN
             )
             await asyncio.sleep(1)
-            await application.bot.send_message(
-                chat_id=int(bot_user_id),
-                text=SUCCESS_TO_START_SOURCING_TEXT
+
+            # Ask for sourcing criterias confirmation using Application-based helper
+            await ask_sourcing_criterias_confirmation_via_application(
+                bot_user_id=str(bot_user_id),
+                application=application,
             )
-            
 
         else:
             raise ValueError(f"Missing required application or bot instance for sending message to user {bot_user_id}")
@@ -1196,6 +1203,95 @@ async def send_to_user_sourcing_criterias_triggered_by_admin_command(vacancy_id:
         raise
 
 
+async def ask_sourcing_criterias_confirmation_via_application(bot_user_id: str, application: Application) -> None:
+    """
+    Variant of `ask_sourcing_criterias_confirmation_command` that works with `Application`
+    and `bot_user_id` only (no `update` / `context`). Used when flow is triggered by admin
+    command and not directly by the user.
+    """
+
+    try:
+        logger.info(f"ask_sourcing_criterias_confirmation_via_application started. user_id: {bot_user_id}")
+
+        # ----- CHECK IF USER EXISTS IN DATABASE -----
+        if not is_value_in_db(db_model=Managers, field_name="id", value=bot_user_id):
+            if application and application.bot:
+                await application.bot.send_message(
+                    chat_id=int(bot_user_id),
+                    text=FAIL_TO_FIND_USER_IN_RECORDS_TEXT,
+                )
+            raise ValueError(
+                f"ask_sourcing_criterias_confirmation_via_application: user {bot_user_id} not found in database"
+            )
+
+        # Build options (which will be tuples of (button_text, callback_data))
+        answer_options = [
+            ("Согласен с критериями отбора.", "sourcing_criterias_confirmation:yes"),
+            ("Не согласен, хочу изменить критерии отбора.", "sourcing_criterias_confirmation:no"),
+        ]
+
+        # Store options in per-user data via Application so that
+        # `handle_answer_sourcing_criterias_confirmation` can resolve button text later.
+        try:
+            # Application.user_data is a global per-user storage provided by python-telegram-bot. It is a dict keyed by user ID.
+            # Later, in handle_answer_sourcing_criterias_confirmation, you want to recover both the callback_data and the original button text. 
+            # update.callback_query only gives you callback_data, 
+            # so you must have saved the mapping (button_text, callback_code) somewhere. 
+            # Here, since you’re in an admin-triggered flow (no update/context), you store that mapping in application.user_data 
+            # so the callback handler can read it back from context.user_data / application.user_data and figure out which button text was chosen.
+            user_id_int = int(bot_user_id)
+            if hasattr(application, "user_data"):
+                # Ensure nested dict exists
+                if user_id_int not in application.user_data:
+                    application.user_data[user_id_int] = {}
+                application.user_data[user_id_int]["sourcing_criterias_confirmation_answer_options"] = answer_options
+        except Exception:
+            # If anything goes wrong with storing in user_data, we still proceed with asking the question.
+            logger.warning(
+                "Failed to store sourcing_criterias_confirmation_answer_options in application.user_data",
+                exc_info=True,
+            )
+
+        # Build inline keyboard and send question
+        keyboard = [
+            [InlineKeyboardButton(text=button_text, callback_data=callback_code)]
+            for button_text, callback_code in answer_options
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        if application and application.bot:
+            await application.bot.send_message(
+                chat_id=int(bot_user_id),
+                text=SOURCING_CRITERIAS_CONFIRMATION_TEXT,
+                reply_markup=reply_markup,
+            )
+            logger.info(
+                "ask_sourcing_criterias_confirmation_via_application: sourcing criterias "
+                "confirmation question with options asked"
+            )
+
+    except Exception as e:
+        logger.error(
+            f"Failed to ask sourcing criterias confirmation via Application: {e}",
+            exc_info=True,
+        )
+        # Notify admin about the error if possible
+        try:
+            if application:
+                await send_message_to_admin(
+                    application=application,
+                    text=(
+                        f"⚠️ Error ask_sourcing_criterias_confirmation_via_application: {e}\n"
+                        f"User ID: {bot_user_id if bot_user_id else 'unknown'}"
+                    ),
+                )
+        except Exception:
+            logger.error(
+                "Failed to send admin notification from ask_sourcing_criterias_confirmation_via_application",
+                exc_info=True,
+            )
+
+'''
 async def ask_sourcing_criterias_confirmation_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # TAGS: [user_related]
     """Ask privacy policy confirmation command handler. 
@@ -1237,7 +1333,7 @@ async def ask_sourcing_criterias_confirmation_command(update: Update, context: C
                 application=context.application,
                 text=f"⚠️ Error ask_sourcing_criterias_confirmation_command: {e}\nUser ID: {bot_user_id if 'bot_user_id' in locals() else 'unknown'}"
             )
-
+'''
 
 async def handle_answer_sourcing_criterias_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # TAGS: [user_related]
@@ -1261,21 +1357,52 @@ async def handle_answer_sourcing_criterias_confirmation(update: Update, context:
 
     # Get options from context or return empty list [] if not found
     sourcing_criterias_confirmation_answer_options = context.user_data.get("sourcing_criterias_confirmation_answer_options", [])
+    
+    # If not found in context.user_data, try application.user_data as fallback
+    # (needed when called from ask_sourcing_criterias_confirmation_via_application)
+    if not sourcing_criterias_confirmation_answer_options and context.application:
+        try:
+            user_id_int = int(bot_user_id)
+            if hasattr(context.application, "user_data") and user_id_int in context.application.user_data:
+                sourcing_criterias_confirmation_answer_options = context.application.user_data[user_id_int].get(
+                    "sourcing_criterias_confirmation_answer_options", []
+                )
+                logger.debug(f"Retrieved sourcing_criterias_confirmation_answer_options from application.user_data for user {bot_user_id}")
+        except (ValueError, KeyError, AttributeError) as e:
+            logger.warning(f"Failed to retrieve options from application.user_data: {e}", exc_info=True)
+    
     # find selected button text from callback_data
+    selected_button_text = None
     for button_text, callback_code in sourcing_criterias_confirmation_answer_options:
         if selected_callback_code == callback_code:
             selected_button_text = button_text
-            # Clear privacy policy confirmation answer options from "context" object, because now use "selected_button_text" variable instead
+            # Clear sourcing criterias confirmation answer options from storage
             context.user_data.pop("sourcing_criterias_confirmation_answer_options", None)
+            # Also clear from application.user_data if it exists there
+            if context.application and hasattr(context.application, "user_data"):
+                try:
+                    user_id_int = int(bot_user_id)
+                    if user_id_int in context.application.user_data:
+                        context.application.user_data[user_id_int].pop("sourcing_criterias_confirmation_answer_options", None)
+                except (ValueError, KeyError, AttributeError):
+                    pass
             break
 
     # ----- INFORM USER about selected option -----
 
-    # If "options" is NOT an empty list execute the following code
-    if sourcing_criterias_confirmation_answer_options:
+    # If "options" is NOT an empty list and we found a matching button text, execute the following code
+    if sourcing_criterias_confirmation_answer_options and selected_button_text:
+        logger.debug(f"sourcing_criterias_confirmation_answer_options: sourcing_criterias_confirmation_answer_options exists and selected_button_text: {selected_button_text}")
         await send_message_to_user(update, context, text=f"Вы выбрали: '{selected_button_text}'")
     else:
-        # No options available, inform user and return
+        # No options available or button text not found, inform user and return
+        logger.warning(
+            f"sourcing_criterias_confirmation_answer_options: "
+            f"options_empty={not sourcing_criterias_confirmation_answer_options}, "
+            f"selected_button_text={selected_button_text}, "
+            f"selected_callback_code={selected_callback_code}, "
+            f"user_id={bot_user_id}"
+        )
         if update.callback_query and update.callback_query.message:
             await send_message_to_user(update, context, text=FAIL_TECHNICAL_SUPPORT_TEXT)
         return
@@ -1301,14 +1428,18 @@ async def handle_answer_sourcing_criterias_confirmation(update: Update, context:
 
         # ----- IF USER CHOSE "YES" download video to local storage -----
 
-        if sourcing_criterias_confirmation_user_decision == "yes":
-            
         # !!! FOR TESTING ONLY !!!
         # !!! FOR TESTING ONLY !!!
         # !!! FOR TESTING ONLY !!!                   
 
-            await send_message_to_user(update, context, text="!!! Поздравляю, ты дошел до этапа поиска кандидатов !!!")
-            
+        if sourcing_criterias_confirmation_user_decision == "yes":
+
+            await send_message_to_user(update, context, text="!!! Поздравляю, ты дошел до этапа получения обратной связи по криетриям. Статус: ДА !!!")
+
+        else:
+
+            await send_message_to_user(update, context, text="!!! Поздравляю, ты дошел до этапа получения обратной связи по криетриям. Статус: НЕТ !!!")
+
         # !!! FOR TESTING ONLY !!!
         # !!! FOR TESTING ONLY !!!
         # !!! FOR TESTING ONLY !!!
@@ -2234,8 +2365,10 @@ def create_manager_application(token: str) -> Application:
     application.add_handler(CallbackQueryHandler(handle_answer_video_record_request, pattern=r"^record_video_request:"))
     application.add_handler(CallbackQueryHandler(handle_answer_confrim_sending_video, pattern=r"^sending_video_confirmation:"))
     application.add_handler(CallbackQueryHandler(handle_answer_policy_confirmation, pattern=r"^privacy_policy_confirmation:"))
+    application.add_handler(CallbackQueryHandler(handle_answer_sourcing_criterias_confirmation, pattern=r"^sourcing_criterias_confirmation:"))
     application.add_handler(CallbackQueryHandler(handle_chat_menu_action, pattern=r"^menu_action:"))
     application.add_handler(CallbackQueryHandler(handle_invite_to_interview_button, pattern=r"^invite_to_interview:"))
+    
     menu_buttons_pattern = f"^({re.escape(BTN_MENU)}|{re.escape(BTN_FEEDBACK)})$"
     application.add_handler(
         MessageHandler(filters.TEXT & filters.Regex(menu_buttons_pattern), handle_bottom_menu_buttons)

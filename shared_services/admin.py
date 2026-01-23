@@ -173,7 +173,7 @@ async def admin_send_sourcing_criterais_to_user_command(update: Update, context:
                         # Import here to avoid circular dependency
                         from manager_bot.manager_bot import send_to_user_sourcing_criterias_triggered_by_admin_command
                         await send_to_user_sourcing_criterias_triggered_by_admin_command(vacancy_id=vacancy_id, application=context.application)
-                        await send_message_to_user(update, context, text=f"Task for analysing sourcing criterias is in task_queue for vacancy {vacancy_id}.")
+                        await send_message_to_user(update, context, text=f"Sned sourcing criteria for vacancy {vacancy_id} to user. Waiting for feedback.")
                     else:
                         raise ValueError(f"Vacancy {vacancy_id} does not have sourcing criterias received.")     
                 else:
@@ -182,32 +182,6 @@ async def admin_send_sourcing_criterais_to_user_command(update: Update, context:
                 raise ValueError(f"Invalid command arguments. Usage: /admin_send_sourcing_criterais_to_user <vacancy_id>")
         else:
             raise ValueError(f"Invalid number of arguments. Usage: /admin_send_sourcing_criterais_to_user <vacancy_id>")
-    
-
-
-
-
-        target_user_id = None
-        if context.args and len(context.args) == 1:
-            target_user_id = context.args[0]
-            if target_user_id:
-                """if is_user_in_records(record_id=target_user_id):"""
-                if is_value_in_db(db_model=Managers, field_name="id", value=target_user_id):
-                    logger.debug(f"User {target_user_id} found in records.")
-                    """if is_vacancy_sourcing_criterias_recieved(record_id=target_user_id):"""
-                    if is_boolean_field_true_in_db(db_model=Managers, record_id=target_user_id, field_name="vacancy_sourcing_criterias_recieved"):    
-                        # Import here to avoid circular dependency
-                        from manager_bot.manager_bot import send_to_user_sourcing_criterias_triggered_by_admin_command
-                        await send_to_user_sourcing_criterias_triggered_by_admin_command(bot_user_id=target_user_id, application=context.application)
-                        await send_message_to_user(update, context, text=f"Sourcing criterias sent to user {target_user_id}.")
-                    else:
-                        raise ValueError(f"User {target_user_id} does not have enough vacancy data for resume analysis.")
-                else:
-                    raise ValueError(f"User {target_user_id} not found in records.")
-            else:
-                raise ValueError(f"Invalid command arguments. Usage: /admin_send_criterias_to_user <user_id>")
-        else:
-            raise ValueError(f"Invalid number of arguments. Usage: /admin_send_criterias_to_user <user_id>")
     
     except Exception as e:
         logger.error(f"admin_send_sourcing_criterais_to_user_command: Failed: {e}", exc_info=True)
